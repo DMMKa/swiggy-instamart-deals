@@ -168,22 +168,31 @@ async function main() {
   });
   const timeString = timeFormatter.format(new Date()) + ' IST';
 
-  let runEssentials = false;
+  let runFresh = false;
+  let runGrocery = false;
   let runTreats = false;
-  let runLifestyle = false;
+  let runMunchies = false;
   let runBeverages = false;
   let runPersonal = false;
+  let runLifestyle = false;
   let runNoice = false;
 
-  if (mode === 'essentials' || mode === 'keywords' || mode === 'aisles') {
-    runEssentials = true;
-  } else if (mode === 'treats' || mode === 'snacks' || mode === 'sweets') {
+  if (mode === 'fresh' || mode === 'produce') {
+    runFresh = true;
+  } else if (mode === 'grocery' || mode === 'staples') {
+    runGrocery = true;
+  } else if (mode === 'essentials' || mode === 'keywords' || mode === 'aisles') {
+    runFresh = true;
+    runGrocery = true;
+  } else if (mode === 'treats' || mode === 'sweets') {
     runTreats = true;
-  } else if (mode === 'lifestyle' || mode === 'home' || mode === 'electronics') {
+  } else if (mode === 'munchies' || mode === 'snacks') {
+    runMunchies = true;
+  } else if (mode === 'lifestyle' || mode === 'home' || mode === 'electronics' || mode === 'baby') {
     runLifestyle = true;
   } else if (mode === 'beverages' || mode === 'drinks' || mode === 'juices') {
     runBeverages = true;
-  } else if (mode === 'personal' || mode === 'personalcare' || mode === 'baby') {
+  } else if (mode === 'personal' || mode === 'personalcare') {
     runPersonal = true;
   } else if (mode === 'noice') {
     runNoice = true;
@@ -192,21 +201,23 @@ async function main() {
     // Scheduled window: 10:00 AM to 10:00 PM IST
     const isWithinHours = (istHours >= 10 && (istHours < 22 || (istHours === 22 && istMinutes <= 15)));
     if (isWithinHours) {
-      runEssentials = true;
+      runFresh = true;
+      runGrocery = true;
       runTreats = true;
-      runLifestyle = true;
+      runMunchies = true;
       runBeverages = true;
       runPersonal = true;
+      runLifestyle = true;
     }
   }
 
   const campaigns = config.campaigns || {};
 
-  // 1. Worker 1: Daily Essentials & Fresh
-  if (runEssentials) {
-    const cfg = campaigns.essentials || campaigns.essentialAisles || {};
-    const threshold = parseInt(process.env.ESSENTIALS_MIN_DISCOUNT, 10) || cfg.minDiscount || 60;
-    await runSubcategoryCampaign('essentials', cfg, {
+  // 1. Worker 1: Daily Fresh Produce & Meats
+  if (runFresh) {
+    const cfg = campaigns.fresh || campaigns.essentials || {};
+    const threshold = parseInt(process.env.FRESH_MIN_DISCOUNT || process.env.ESSENTIALS_MIN_DISCOUNT, 10) || cfg.minDiscount || 60;
+    await runSubcategoryCampaign('fresh', cfg, {
       bot,
       chatId,
       storeConfig,
@@ -215,7 +226,20 @@ async function main() {
     });
   }
 
-  // 2. Worker 2: Sweets, Snacks & Treats
+  // 2. Worker 2: Daily Staples & Cooking Essentials
+  if (runGrocery) {
+    const cfg = campaigns.grocery || campaigns.essentials || {};
+    const threshold = parseInt(process.env.GROCERY_MIN_DISCOUNT || process.env.ESSENTIALS_MIN_DISCOUNT, 10) || cfg.minDiscount || 60;
+    await runSubcategoryCampaign('grocery', cfg, {
+      bot,
+      chatId,
+      storeConfig,
+      threshold,
+      timeString
+    });
+  }
+
+  // 3. Worker 3: Sweets, Chocolates & Bakery
   if (runTreats) {
     const cfg = campaigns.treats || {};
     const threshold = parseInt(process.env.TREATS_MIN_DISCOUNT, 10) || cfg.minDiscount || 70;
@@ -228,11 +252,11 @@ async function main() {
     });
   }
 
-  // 3. Worker 3: Lifestyle, Home & Electronics
-  if (runLifestyle) {
-    const cfg = campaigns.lifestyle || {};
-    const threshold = parseInt(process.env.LIFESTYLE_MIN_DISCOUNT, 10) || cfg.minDiscount || 85;
-    await runSubcategoryCampaign('lifestyle', cfg, {
+  // 4. Worker 4: Snacks, Munchies & Instant Foods
+  if (runMunchies) {
+    const cfg = campaigns.munchies || campaigns.treats || {};
+    const threshold = parseInt(process.env.MUNCHIES_MIN_DISCOUNT || process.env.TREATS_MIN_DISCOUNT, 10) || cfg.minDiscount || 70;
+    await runSubcategoryCampaign('munchies', cfg, {
       bot,
       chatId,
       storeConfig,
@@ -241,7 +265,7 @@ async function main() {
     });
   }
 
-  // 4. Worker 4: Cold Drinks, Beverages & Spreads
+  // 5. Worker 5: Cold Drinks, Nutrition & Spreads
   if (runBeverages) {
     const cfg = campaigns.beverages || {};
     const threshold = parseInt(process.env.BEVERAGES_MIN_DISCOUNT, 10) || cfg.minDiscount || 70;
@@ -254,11 +278,24 @@ async function main() {
     });
   }
 
-  // 5. Worker 5: Personal Care, Baby & Laundry
+  // 6. Worker 6: Personal Care, Bath & Skincare
   if (runPersonal) {
     const cfg = campaigns.personalCare || campaigns.personal || {};
     const threshold = parseInt(process.env.PERSONAL_MIN_DISCOUNT, 10) || cfg.minDiscount || 70;
     await runSubcategoryCampaign('personalCare', cfg, {
+      bot,
+      chatId,
+      storeConfig,
+      threshold,
+      timeString
+    });
+  }
+
+  // 7. Worker 7: Baby Care & Lifestyle
+  if (runLifestyle) {
+    const cfg = campaigns.lifestyle || {};
+    const threshold = parseInt(process.env.LIFESTYLE_MIN_DISCOUNT, 10) || cfg.minDiscount || 85;
+    await runSubcategoryCampaign('lifestyle', cfg, {
       bot,
       chatId,
       storeConfig,

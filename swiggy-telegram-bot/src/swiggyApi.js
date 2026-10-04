@@ -603,6 +603,7 @@ async function apiRequestSafe(url, method = 'GET', body = null, retry = 0) {
     }
     return null;
   } catch (e) {
+    console.warn(`[SwiggyAPI] Network fetch error (${method} ${url}):`, e.message);
     return null;
   }
 }

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const http = require('http');
 const TelegramBot = require('node-telegram-bot-api');
+const config = require('../config.json');
 const { fetchNoiceDeals } = require('./swiggyApi');
 const { findAlertWorthyDeals, loadCache } = require('./dealTracker');
 const { sendBatchAlerts } = require('./notifier');
@@ -11,9 +12,9 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
 const minDiscount = parseInt(process.env.MIN_DISCOUNT_PERCENT, 10) || config.minDiscount || 30;
 
 const storeConfig = {
-  sid: process.env.SWIGGY_STORE_ID || config.store.sid,
-  pid: process.env.SWIGGY_PRIMARY_STORE_ID || config.store.pid,
-  secid: process.env.SWIGGY_SECONDARY_STORE_ID || config.store.secid
+  sid: process.env.SWIGGY_STORE_ID || config.store?.sid || '',
+  pid: process.env.SWIGGY_PRIMARY_STORE_ID || config.store?.pid || '',
+  secid: process.env.SWIGGY_SECONDARY_STORE_ID || config.store?.secid || ''
 };
 
 let bot = null;

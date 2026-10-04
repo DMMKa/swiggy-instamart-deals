@@ -111,8 +111,8 @@ Click the **Fork** button at the top-right corner of this GitHub repository to c
 ### Step 2: Create Your Telegram Bot
 1. Open Telegram and search for [@BotFather](https://t.me/BotFather).
 2. Send `/newbot` and follow the prompts to choose a bot name and username (e.g. `MySwiggyDealsBot`).
-3. BotFather will provide an **HTTP API Token** (e.g. `8938917149:AAEukMEm9pu...`). Save this token — this is your `TELEGRAM_BOT_TOKEN`.
-4. Now search for [@userinfobot](https://t.me/userinfobot) on Telegram, tap **Start**, and copy your numeric **Id** (e.g. `5747888529`). This is your `TELEGRAM_CHAT_ID`.
+3. BotFather will provide an **HTTP API Token** (e.g. `1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ...`). Save this token — this is your `TELEGRAM_BOT_TOKEN`.
+4. Now search for [@userinfobot](https://t.me/userinfobot) on Telegram, tap **Start**, and copy your numeric **Id** (e.g. `123456789`). This is your `TELEGRAM_CHAT_ID`.
    > *Tip: If you want alerts sent to a Telegram Channel, create a public or private channel, add your bot as an Admin, and use the Channel Username (e.g. `@MyDealsChannel`) or Channel ID as `TELEGRAM_CHAT_ID`.*
 
 ---
@@ -122,10 +122,10 @@ Click the **Fork** button at the top-right corner of this GitHub repository to c
 2. Click on **any category** (such as *Atta, Rice & Dal* or *Dairy, Bread & Eggs*).
 3. Look at your browser address bar URL. It will look like this:
    ```
-   https://www.swiggy.com/instamart/category-listing?storeId=1400216&primaryStoreId=1400216&secondaryStoreId=1400217...
+   https://www.swiggy.com/instamart/category-listing?storeId=138294&primaryStoreId=138294&secondaryStoreId=138295...
    ```
 4. Extract the IDs from the URL:
-   - `storeId` → **`SWIGGY_STORE_ID`** (e.g. `1400216`)
+   - `storeId` → **`SWIGGY_STORE_ID`** (e.g. `138294`)
    - `primaryStoreId` → **`SWIGGY_PRIMARY_STORE_ID`** (same as `storeId`)
    - `secondaryStoreId` → **`SWIGGY_SECONDARY_STORE_ID`** (if present in your URL; if not present, leave empty)
 

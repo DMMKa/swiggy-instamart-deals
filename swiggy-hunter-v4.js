@@ -3396,7 +3396,7 @@ javascript:(async () => {
           }
           cardHtml += '<a class="img-wrap" href="' + esc(sLink) + '" target="_blank" rel="noopener" title="Open ' + esc(r.name) + ' on Instamart">';
           if (imgUrl) {
-            cardHtml += '<img class="product-img" src="' + imgUrl + '" alt="' + esc(r.name) + '" loading="lazy" />';
+            cardHtml += '<img class="product-img" src="' + esc(imgUrl) + '" alt="' + esc(r.name) + '" loading="lazy" />';
           } else {
             cardHtml += '<div class="img-placeholder">🛒</div>';
           }

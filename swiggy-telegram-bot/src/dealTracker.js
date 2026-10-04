@@ -62,7 +62,8 @@ function getIstContext(overrideDate = null, overrideHour = null, refreshCycle = 
   }
   const dateStr = overrideDate || istDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
   const hour = overrideHour !== null ? overrideHour : istDate.getUTCHours(); // 0 to 23
-  const runId = `${dateStr}-${hour}`;
+  const minuteSlot = istDate.getUTCMinutes() < 30 ? '00' : '30';
+  const runId = `${dateStr}-${hour}:${minuteSlot}`;
 
   const dailyCycleId = `D-${dateStr}`;
   const weekStartStr = getIstWeekStart(istDate, resetDay);
@@ -137,10 +138,10 @@ function findAlertWorthyDeals(items, minDiscount = 70, campaignKey = 'default', 
     resetDay
   );
 
-  // Daily cycle first run: date change or 10:00 AM IST morning run
+  // Daily cycle first run: date change or morning kickoff run (09:00 AM or 10:00 AM IST)
   const isDailyFirstRun = (cache.lastDailyCycleId !== dailyCycleId)
     || (!cache.lastDailyCycleId && cache.lastDate !== dateStr)
-    || (hour === 10 && cache.lastRunHour !== 10);
+    || ((hour === 9 || hour === 10) && (cache.lastRunHour === null || cache.lastRunHour < 9));
 
   // Weekly cycle first run: weekly cycle ID rollover on resetDay
   const isWeeklyFirstRun = (cache.lastWeeklyCycleId !== weeklyCycleId)

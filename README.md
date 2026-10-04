@@ -89,13 +89,15 @@ An automated deal hunter running on a scheduled cron. Every hour, it triggers **
 ### 🧠 Smart Duplicate & Spam Suppression
 
 To prevent flooding your Telegram with repeated notifications:
-- **10:00 AM IST (Morning Reset)**: Clears previous run tracking and sends the complete fresh morning deals catalog.
-- **Hourly Runs (11:00 AM – 10:00 PM IST)**:
+- **09:01 AM IST (Morning Reset)**: Clears previous day tracking and sends the complete fresh morning deals catalog.
+- **30-Minute Interval Runs (09:31 AM – 12:01 AM midnight IST)**:
   - **Identical price**: Suppressed (not re-sent).
   - **Price drops**: Alerted immediately (`PRICE_DROP`).
   - **New deals**: Alerted (`NEW_DEAL`).
   - **Restocked items**: Alerted when back in stock (`BACK_IN_STOCK`).
 - **Silent Exit**: If no deals meet the threshold, the bot exits silently without sending empty messages.
+- **Queue Staleness Guard**: Automatically drops runs if GitHub runner queues delay execution by >15 minutes past target slots (e.g. preventing delayed 1:20 AM alerts).
+- **Auto-Retry on Server Busy**: If Swiggy is overloaded during peak sale drops (such as 12:00 AM midnight), workers automatically retry up to 3 times with a 75s buffer before giving up.
 
 ---
 
@@ -164,7 +166,7 @@ In your forked GitHub repository:
 3. Select **"Swiggy Instamart Keyword Deal Hunter"** from the left sidebar.
 4. Click **Run workflow** → select `Skip top-of-hour wait sync (run immediately)` → Click **Run workflow**.
 5. Within ~30 seconds, all 7 workers will execute in parallel and you will receive high-discount deals directly on Telegram!
-6. From now on, GitHub Actions runs automatically every hour from **10:00 AM to 10:00 PM IST**.
+6. From now on, GitHub Actions runs automatically **every 30 minutes** from **09:01 AM to 12:01 AM midnight IST**.
 
 ---
 

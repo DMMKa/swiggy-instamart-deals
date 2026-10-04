@@ -2,9 +2,11 @@ name: Swiggy Instamart Keyword Deal Hunter
 
 on:
   schedule:
-    # Triggers at minute 30 UTC between 04:30 and 16:30 UTC (10:00 AM to 10:00 PM IST).
-    # The runner boots up in ~30-40s, syncing with Swiggy deal propagation (:00:30 IST).
-    - cron: '30 4-16 * * *'
+    # 30-Minute Interval Deal Hunter (09:01 AM to 12:01 AM midnight IST):
+    # Slot 1 (:01 past hour): 09:01 AM IST (03:31 UTC) through 12:01 AM midnight IST (18:31 UTC)
+    - cron: '31 3-18 * * *'
+    # Slot 2 (:31 past hour): 09:31 AM IST (04:01 UTC) through 11:31 PM IST (18:01 UTC)
+    - cron: '1 4-18 * * *'
   workflow_dispatch:
     inputs:
       skip_sync:
@@ -64,6 +66,7 @@ jobs:
           PERSONAL_MIN_DISCOUNT: ${{ secrets.PERSONAL_MIN_DISCOUNT }}
           USE_BROWSER: 'true'
           SKIP_SYNC: ${{ inputs.skip_sync }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           EXTRA_FLAGS=""
           if [ "$SKIP_SYNC" = "true" ]; then

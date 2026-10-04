@@ -30,11 +30,14 @@ function saveUsers(users) {
 }
 
 const DEFAULT_WORKER_DISCOUNTS = {
-  essentials: 60,
+  fresh: 60,
+  grocery: 60,
   treats: 70,
-  lifestyle: 85,
+  munchies: 70,
   beverages: 70,
-  personalCare: 70
+  personalCare: 70,
+  lifestyle: 85,
+  essentials: 60
 };
 
 function getUser(chatId, defaultConfig = {}) {

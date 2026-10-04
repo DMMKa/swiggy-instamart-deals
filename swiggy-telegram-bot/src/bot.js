@@ -156,11 +156,13 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
   });
 
   const WORKERS = [
-    { key: 'essentials', name: 'Daily Essentials & Fresh', tag: '🌾', defaultDiscount: 60 },
-    { key: 'treats', name: 'Sweets, Snacks & Treats', tag: '🍿', defaultDiscount: 70 },
-    { key: 'lifestyle', name: 'Lifestyle, Home & Fashion', tag: '🛍️', defaultDiscount: 85 },
-    { key: 'beverages', name: 'Cold Drinks, Beverages & Spreads', tag: '🥤', defaultDiscount: 70 },
-    { key: 'personalCare', name: 'Personal Care, Baby & Laundry', tag: '🧴', defaultDiscount: 70 }
+    { key: 'fresh', name: 'Daily Fresh Produce & Meats', tag: '🥦', defaultDiscount: 60 },
+    { key: 'grocery', name: 'Daily Staples & Cooking Essentials', tag: '🌾', defaultDiscount: 60 },
+    { key: 'treats', name: 'Sweets, Chocolates & Bakery', tag: '🍫', defaultDiscount: 70 },
+    { key: 'munchies', name: 'Snacks, Munchies & Instant Foods', tag: '🍿', defaultDiscount: 70 },
+    { key: 'beverages', name: 'Cold Drinks, Nutrition & Spreads', tag: '🥤', defaultDiscount: 70 },
+    { key: 'personalCare', name: 'Personal Care, Bath & Skincare', tag: '🧴', defaultDiscount: 70 },
+    { key: 'lifestyle', name: 'Baby Care & Lifestyle', tag: '🛍️', defaultDiscount: 85 }
   ];
 
   function getWorkerDiscountOverviewText(user) {
@@ -169,12 +171,14 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
       `🎯 <b>Worker Discount Alert Thresholds</b>\n\n` +
       `Choose a worker below to adjust its alert threshold, or send:\n` +
       `<code>/setdiscount &lt;worker&gt; &lt;percentage&gt;</code>\n` +
-      `<i>Example</i>: <code>/setdiscount essentials 65</code>\n\n` +
-      `• 🌾 <b>Daily Essentials & Fresh</b>: <b>≥ ${wd.essentials || 60}% OFF</b>\n` +
-      `• 🍿 <b>Sweets, Snacks & Treats</b>: <b>≥ ${wd.treats || 70}% OFF</b>\n` +
-      `• 🛍️ <b>Lifestyle & Home</b>: <b>≥ ${wd.lifestyle || 85}% OFF</b>\n` +
+      `<i>Example</i>: <code>/setdiscount fresh 65</code>\n\n` +
+      `• 🥦 <b>Fresh Produce & Meats</b>: <b>≥ ${wd.fresh || 60}% OFF</b>\n` +
+      `• 🌾 <b>Staples & Groceries</b>: <b>≥ ${wd.grocery || 60}% OFF</b>\n` +
+      `• 🍫 <b>Sweets & Chocolates</b>: <b>≥ ${wd.treats || 70}% OFF</b>\n` +
+      `• 🍿 <b>Snacks & Munchies</b>: <b>≥ ${wd.munchies || 70}% OFF</b>\n` +
       `• 🥤 <b>Cold Drinks & Beverages</b>: <b>≥ ${wd.beverages || 70}% OFF</b>\n` +
-      `• 🧴 <b>Personal Care & Laundry</b>: <b>≥ ${wd.personalCare || 70}% OFF</b>\n\n` +
+      `• 🧴 <b>Personal Care & Bath</b>: <b>≥ ${wd.personalCare || 70}% OFF</b>\n` +
+      `• 🛍️ <b>Baby Care & Lifestyle</b>: <b>≥ ${wd.lifestyle || 85}% OFF</b>\n\n` +
       `<i>Tap a worker button below to customize:</i>`
     );
   }
@@ -184,18 +188,20 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
     return {
       inline_keyboard: [
         [
-          { text: `🌾 Essentials (${wd.essentials || 60}%)`, callback_data: 'selworker:essentials' },
-          { text: `🍿 Treats (${wd.treats || 70}%)`, callback_data: 'selworker:treats' }
+          { text: `🥦 Fresh (${wd.fresh || 60}%)`, callback_data: 'selworker:fresh' },
+          { text: `🌾 Grocery (${wd.grocery || 60}%)`, callback_data: 'selworker:grocery' }
+        ],
+        [
+          { text: `🍫 Treats (${wd.treats || 70}%)`, callback_data: 'selworker:treats' },
+          { text: `🍿 Munchies (${wd.munchies || 70}%)`, callback_data: 'selworker:munchies' }
+        ],
+        [
+          { text: `🥤 Beverages (${wd.beverages || 70}%)`, callback_data: 'selworker:beverages' },
+          { text: `🧴 Personal (${wd.personalCare || 70}%)`, callback_data: 'selworker:personalCare' }
         ],
         [
           { text: `🛍️ Lifestyle (${wd.lifestyle || 85}%)`, callback_data: 'selworker:lifestyle' },
-          { text: `🥤 Beverages (${wd.beverages || 70}%)`, callback_data: 'selworker:beverages' }
-        ],
-        [
-          { text: `🧴 Personal Care (${wd.personalCare || 70}%)`, callback_data: 'selworker:personalCare' }
-        ],
-        [
-          { text: '🌐 Set All Workers Together', callback_data: 'selworker:all' }
+          { text: '🌐 Set All Together', callback_data: 'selworker:all' }
         ]
       ]
     };
@@ -223,11 +229,14 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
 
   function resolveWorkerKey(input) {
     const s = String(input || '').toLowerCase().trim();
-    if (['essentials', 'essential', 'fresh', 'produce', 'w1', 'worker1', '1'].includes(s)) return 'essentials';
-    if (['treats', 'treat', 'snacks', 'snack', 'sweets', 'w2', 'worker2', '2'].includes(s)) return 'treats';
-    if (['lifestyle', 'life', 'home', 'kitchen', 'fashion', 'w3', 'worker3', '3'].includes(s)) return 'lifestyle';
-    if (['beverages', 'beverage', 'drinks', 'drink', 'spreads', 'w4', 'worker4', '4'].includes(s)) return 'beverages';
-    if (['personal', 'personalcare', 'baby', 'laundry', 'cleaners', 'w5', 'worker5', '5'].includes(s)) return 'personalCare';
+    if (['fresh', 'produce', 'vegetables', 'fruits', 'meat', 'w1', 'worker1', '1'].includes(s)) return 'fresh';
+    if (['grocery', 'staples', 'atta', 'rice', 'dal', 'oils', 'w2', 'worker2', '2'].includes(s)) return 'grocery';
+    if (['treats', 'treat', 'sweets', 'chocolates', 'bakery', 'w3', 'worker3', '3'].includes(s)) return 'treats';
+    if (['munchies', 'munchie', 'snacks', 'snack', 'chips', 'noodles', 'w4', 'worker4', '4'].includes(s)) return 'munchies';
+    if (['beverages', 'beverage', 'drinks', 'drink', 'juices', 'tea', 'coffee', 'w5', 'worker5', '5'].includes(s)) return 'beverages';
+    if (['personal', 'personalcare', 'bath', 'hair', 'skincare', 'w6', 'worker6', '6'].includes(s)) return 'personalCare';
+    if (['lifestyle', 'life', 'baby', 'home', 'kitchen', 'fashion', 'w7', 'worker7', '7'].includes(s)) return 'lifestyle';
+    if (['essentials', 'essential'].includes(s)) return 'fresh';
     if (['all', 'global', 'everyone'].includes(s)) return 'all';
     return null;
   }
@@ -252,11 +261,13 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
       `• <b>Primary Store ID</b>: <code>${pid}</code>\n` +
       `• <b>Secondary Store ID</b>: <code>${secid}</code>\n\n` +
       `🎯 <b>Worker Discount Alert Thresholds:</b>\n` +
-      `• 🌾 <b>Daily Essentials & Fresh</b>: <b>≥ ${wd.essentials || 60}% OFF</b>\n` +
-      `• 🍿 <b>Sweets, Snacks & Treats</b>: <b>≥ ${wd.treats || 70}% OFF</b>\n` +
-      `• 🛍️ <b>Lifestyle & Home</b>: <b>≥ ${wd.lifestyle || 85}% OFF</b>\n` +
+      `• 🥦 <b>Fresh Produce & Meats</b>: <b>≥ ${wd.fresh || 60}% OFF</b>\n` +
+      `• 🌾 <b>Staples & Groceries</b>: <b>≥ ${wd.grocery || 60}% OFF</b>\n` +
+      `• 🍫 <b>Sweets & Chocolates</b>: <b>≥ ${wd.treats || 70}% OFF</b>\n` +
+      `• 🍿 <b>Snacks & Munchies</b>: <b>≥ ${wd.munchies || 70}% OFF</b>\n` +
       `• 🥤 <b>Cold Drinks & Beverages</b>: <b>≥ ${wd.beverages || 70}% OFF</b>\n` +
-      `• 🧴 <b>Personal Care & Laundry</b>: <b>≥ ${wd.personalCare || 70}% OFF</b>\n\n` +
+      `• 🧴 <b>Personal Care & Bath</b>: <b>≥ ${wd.personalCare || 70}% OFF</b>\n` +
+      `• 🛍️ <b>Baby Care & Lifestyle</b>: <b>≥ ${wd.lifestyle || 85}% OFF</b>\n\n` +
       `💡 <i>To update dark store IDs, send <b>/store</b>. To change discount thresholds, send <b>/setdiscount</b>.</i>`,
       { parse_mode: 'HTML' }
     );
@@ -267,7 +278,7 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
     bot.sendMessage(
       msg.chat.id,
       'ℹ️ <b>Manual fetching is disabled.</b>\n\n' +
-      'Deals across all <b>154 grocery aisles</b> are monitored automatically every hour (10:00 AM – 10:00 PM IST) across 5 parallel workers.\n\n' +
+      'Deals across all <b>327 aisles</b> are monitored automatically every hour (10:00 AM – 10:00 PM IST) across 7 parallel workers.\n\n' +
       '• Use <code>/setdiscount</code> to configure alert thresholds for each worker.\n' +
       '• Use <code>/store</code> to check or update your Dark Store IDs.\n' +
       '• Use <code>/status</code> to check active settings.',
@@ -284,11 +295,14 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
       const discountVal = parseInt(data.split(':')[1], 10);
       if (discountVal >= 5 && discountVal <= 95) {
         const newDiscounts = {
-          essentials: discountVal,
+          fresh: discountVal,
+          grocery: discountVal,
           treats: discountVal,
-          lifestyle: discountVal,
+          munchies: discountVal,
           beverages: discountVal,
-          personalCare: discountVal
+          personalCare: discountVal,
+          lifestyle: discountVal,
+          essentials: discountVal
         };
         updateUser(query.message.chat.id, { minDiscount: discountVal, workerDiscounts: newDiscounts });
         await bot.answerCallbackQuery(query.id, { text: `Threshold updated to ${discountVal}% OFF!` });
@@ -359,11 +373,14 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
       if (discountVal >= 5 && discountVal <= 95) {
         if (targetWorker === 'all') {
           const newDiscounts = {
-            essentials: discountVal,
+            fresh: discountVal,
+            grocery: discountVal,
             treats: discountVal,
-            lifestyle: discountVal,
+            munchies: discountVal,
             beverages: discountVal,
-            personalCare: discountVal
+            personalCare: discountVal,
+            lifestyle: discountVal,
+            essentials: discountVal
           };
           updateUser(query.message.chat.id, {
             minDiscount: discountVal,
@@ -371,7 +388,7 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
           });
           await bot.answerCallbackQuery(query.id, { text: `All workers set to ≥ ${discountVal}% OFF!` });
           return bot.editMessageText(
-            `✅ <b>All 5 Workers updated to ≥ ${discountVal}% OFF!</b>`,
+            `✅ <b>All 7 Workers updated to ≥ ${discountVal}% OFF!</b>`,
             {
               chat_id: query.message.chat.id,
               message_id: query.message.message_id,
@@ -426,16 +443,19 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
       const val = parseInt(arg1, 10);
       if (val >= 5 && val <= 95) {
         const newDiscounts = {
-          essentials: val,
+          fresh: val,
+          grocery: val,
           treats: val,
-          lifestyle: val,
+          munchies: val,
           beverages: val,
-          personalCare: val
+          personalCare: val,
+          lifestyle: val,
+          essentials: val
         };
         updateUser(msg.chat.id, { minDiscount: val, workerDiscounts: newDiscounts });
         return bot.sendMessage(
           msg.chat.id,
-          `✅ Alert threshold for <b>all 5 workers</b> updated to <b>≥ ${val}% OFF</b>.`,
+          `✅ Alert threshold for <b>all 7 workers</b> updated to <b>≥ ${val}% OFF</b>.`,
           { parse_mode: 'HTML' }
         );
       } else {
@@ -443,7 +463,7 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
       }
     }
 
-    // Case 3: Worker identifier + percentage (e.g. /setdiscount essentials 65)
+    // Case 3: Worker identifier + percentage (e.g. /setdiscount fresh 65)
     const workerKey = resolveWorkerKey(arg1);
     const val = parseInt(arg2, 10);
 
@@ -451,8 +471,8 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
       return bot.sendMessage(
         msg.chat.id,
         `❌ Unknown worker <b>"${escapeHtml(arg1)}"</b>.\n\n` +
-        `Valid options: <code>essentials</code>, <code>treats</code>, <code>lifestyle</code>, <code>beverages</code>, <code>personal</code>, or <code>all</code>.\n` +
-        `<i>Example</i>: <code>/setdiscount essentials 65</code>`,
+        `Valid options: <code>fresh</code>, <code>grocery</code>, <code>treats</code>, <code>munchies</code>, <code>beverages</code>, <code>personal</code>, <code>lifestyle</code>, or <code>all</code>.\n` +
+        `<i>Example</i>: <code>/setdiscount fresh 65</code>`,
         { parse_mode: 'HTML' }
       );
     }
@@ -467,16 +487,19 @@ Send: <code>/store &lt;primaryId&gt; [secondaryId]</code>
 
     if (workerKey === 'all') {
       const newDiscounts = {
-        essentials: val,
+        fresh: val,
+        grocery: val,
         treats: val,
-        lifestyle: val,
+        munchies: val,
         beverages: val,
-        personalCare: val
+        personalCare: val,
+        lifestyle: val,
+        essentials: val
       };
       updateUser(msg.chat.id, { minDiscount: val, workerDiscounts: newDiscounts });
       return bot.sendMessage(
         msg.chat.id,
-        `✅ Alert threshold for <b>all 5 workers</b> updated to <b>≥ ${val}% OFF</b>.`,
+        `✅ Alert threshold for <b>all 7 workers</b> updated to <b>≥ ${val}% OFF</b>.`,
         { parse_mode: 'HTML' }
       );
     }

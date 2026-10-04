@@ -1,9 +1,9 @@
 # 🛒 Swiggy Instamart Deal Hunter & Scout Suite
 
-A comprehensive toolkit for discovering hidden deals, clearance discounts, and high-saving offers on **Swiggy Instamart**:
+A comprehensive toolkit for discovering hidden deals, clearance discounts, and massive price drops on **Swiggy Instamart**:
 
-1. **⚡ Deal Scout (Browser Bookmarklet & Web Portal)**: Interactive in-browser overlay to cherry-pick subcategories and scan live deals directly within your active Swiggy session.
-2. **🤖 5-Worker Parallel Deal Hunter (Telegram Bot)**: Automated 24/7 background scraper powered by GitHub Actions matrix runners that tracks 154 curated aisles across 5 parallel workers and sends instant Telegram alerts with smart duplicate suppression.
+1. **⚡ Deal Scout (Browser Bookmarklet & Web Portal)**: Interactive in-browser overlay to cherry-pick subcategories and scan live deals directly within your active Swiggy session on Desktop and Mobile.
+2. **🤖 7-Worker Parallel Deal Hunter (Telegram Bot)**: Automated 24/7 background scraper powered by GitHub Actions matrix runners that tracks **327 curated subcategories** across **7 parallel workers** and delivers instant Telegram alerts with smart duplicate suppression.
 
 ---
 
@@ -12,10 +12,11 @@ A comprehensive toolkit for discovering hidden deals, clearance discounts, and h
 | Feature | ⚡ Deal Scout Bookmarklet | 🤖 Telegram Bot Deal Hunter |
 | :--- | :--- | :--- |
 | **Interface** | Visual in-page modal on Swiggy Instamart | Consolidated Telegram channel/chat alerts |
-| **Execution** | Client-side (Runs inside your browser) | Cloud-based (5 Parallel GitHub Actions VMs) |
-| **Catalog Coverage** | Pre-mapped **36 categories & all subcategories** | **154 Curated Aisles** across 5 parallel workers |
+| **Execution** | Client-side (Runs inside your browser) | Cloud-based (7 Parallel GitHub Actions VMs) |
+| **Catalog Coverage** | Pre-mapped **36 categories & all subcategories** | **327 Curated Aisles** across 7 parallel workers |
 | **Threshold** | User-selected via UI chips (e.g. 50%, 60%, 70%) | **Tiered per worker** (60%–85% OFF, fully customizable) |
-| **Speed** | 1–2 seconds per selected subcategory | ~20–30 seconds total for 154 aisles in parallel |
+| **Speed** | 1–2 seconds per selected subcategory | ~25–35 seconds total for 327 aisles in parallel |
+| **Pagination** | Page 1 always + Smart Page 2 auto-fetch | Page 1 high-to-low deals per aisle |
 | **Rate-Limit Safety** | Zero risk (uses your authentic browser cookies) | Independent VM IPs with CloudFront backoff |
 | **Spam Prevention** | Zepto-style card grid, brand filters & sorting | Consecutive run suppression & morning reset |
 
@@ -25,180 +26,233 @@ A comprehensive toolkit for discovering hidden deals, clearance discounts, and h
 
 The Deal Scout bookmarklet injects a floating control panel on [swiggy.com/instamart](https://www.swiggy.com/instamart), allowing you to scout specific aisles on demand without getting rate-limited.
 
-### 🚀 Desktop Installation & Usage (Chrome, Edge, Brave, Safari, Firefox)
-1. Visit the GitHub Pages setup portal:
-   👉 **[https://jairaj26.github.io/swiggy-instamart-deals/](https://jairaj26.github.io/swiggy-instamart-deals/)**
-2. Show your browser bookmarks bar (<kbd>Ctrl+Shift+B</kbd> on Windows or <kbd>Cmd+Shift+B</kbd> on Mac).
-3. Drag the orange **"🛒 Swiggy Deal Scout"** button directly to your browser's Bookmarks bar.
-4. Open **[swiggy.com/instamart](https://www.swiggy.com/instamart)** and click the bookmark anytime you want to scout deals.
-5. Pick your category and subcategories, then click **Fetch**!
+### 🌐 Setup Portal
+Visit the setup portal:
+👉 **[https://jairaj26.github.io/swiggy-instamart-deals/](https://jairaj26.github.io/swiggy-instamart-deals/)**
 
 ---
 
-### 📱 Mobile Installation & Usage (Chrome, Safari, Brave on Android & iOS)
-Mobile browsers don't have an "Import HTML" menu in their mobile apps, but the mobile bookmarklet is **ultra-lightweight (only 167 characters)**, making setup take just 10 seconds:
+### 🖥️ Desktop Setup (Chrome, Edge, Brave, Safari, Firefox)
+1. Show your browser bookmarks bar (<kbd>Ctrl+Shift+B</kbd> on Windows or <kbd>Cmd+Shift+B</kbd> on Mac).
+2. Visit the [Setup Portal](https://jairaj26.github.io/swiggy-instamart-deals/).
+3. Drag the orange **"🛒 Swiggy Deal Scout"** button directly onto your browser's Bookmarks bar.
+4. Open **[swiggy.com/instamart](https://www.swiggy.com/instamart)** and ensure your delivery location is set.
+5. Click the bookmark anytime to open the Deal Scout overlay.
+6. Pick your category and subcategories, choose a discount threshold chip (50%, 60%, 70%), and click **Fetch**!
 
-1. **Copy the 167-char code**:
-   - Open the setup portal on your phone: 👉 **[https://jairaj26.github.io/swiggy-instamart-deals/](https://jairaj26.github.io/swiggy-instamart-deals/)**
+---
+
+### 📱 Mobile Setup (Android & iOS — Chrome, Safari, Brave)
+Mobile browsers do not support drag-and-drop bookmarking, but the mobile bookmarklet is **ultra-lightweight (only 167 characters)**:
+
+1. **Copy the code**:
+   - Open the [Setup Portal](https://jairaj26.github.io/swiggy-instamart-deals/) on your mobile browser.
    - Tap **📋 Copy Mobile Code (167 chars)**.
-2. **Create a temporary bookmark**:
-   - Tap your mobile browser menu (<kbd>⋮</kbd> on Android or Share icon on iOS) and tap **⭐ / Add Bookmark** to bookmark this page.
+2. **Bookmark any page**:
+   - Tap your browser menu (<kbd>⋮</kbd> on Android or Share icon on iOS) and tap **⭐ / Add Bookmark**.
 3. **Edit the bookmark**:
    - Open your browser's **Bookmarks** list.
-   - Tap the <kbd>⋮</kbd> menu next to the new bookmark and select **Edit**.
-   - Change the **Name** to `Swiggy Deal Scout`.
-   - Clear the **URL** field and **paste** the 167-char copied script. Save changes.
+   - Tap the <kbd>⋮</kbd> menu next to the new bookmark and tap **Edit**.
+   - Set **Name** to: `Swiggy Deal Scout`
+   - Delete the **URL** field and **paste** the copied script. Save changes.
 4. **How to run on Mobile**:
-   - Navigate to **[swiggy.com/instamart](https://www.swiggy.com/instamart)** and ensure your delivery location is set.
+   - Go to **[swiggy.com/instamart](https://www.swiggy.com/instamart)** and make sure your delivery address is selected.
    - Tap your browser's **address bar** (URL bar) at the top.
    - Type `Swiggy Deal Scout`.
-   - In the dropdown search suggestions, tap the **bookmark icon** named **Swiggy Deal Scout**.
+   - In the dropdown search suggestions, tap the **bookmark entry** named **Swiggy Deal Scout**.
    - The Deal Scout overlay will slide out immediately over the mobile page!
 
-> 💡 **Desktop Sync Alternative**: If you use Google Chrome or Apple iCloud account sync, click **"📥 Download Bookmarks (.html)"** on your computer and import it via *Bookmarks → Import Bookmarks*. It will automatically appear in your mobile phone's bookmarks!
+> [!NOTE]
+> **How Bookmarklet Pagination Works**:
+> The bookmarklet fetches Page 1 sorted by discount (highest to lowest). If Page 1 contains 15 or more items and the lowest discount item is still **> 50%**, it automatically fetches **Page 2** so you never miss deep discounts that spill over.
 
 ---
 
-## 🤖 2. Telegram Deal Hunter Bot (5-Worker Architecture)
+## 🤖 2. Telegram Deal Hunter Bot (7-Worker Architecture)
 
-An automated deal hunter running on a scheduled cron. Every hour, it triggers **5 parallel worker VMs** via GitHub Actions to scan 154 dark store aisles simultaneously.
+An automated deal hunter running on a scheduled cron. Every hour, it triggers **7 parallel worker VMs** via GitHub Actions to scan **327 dark store aisles** simultaneously.
 
-### 🌾 The 5 Workers (154 Curated Aisles)
+### 🌾 The 7 Workers & Default Discount Thresholds
 
-| Worker | Campaign Name | Aisles | Default Min Discount | Included Subcategories |
+| Worker | Name / Campaign | Aisles | Default Threshold | Included Subcategories |
 | :--- | :--- | :---: | :---: | :--- |
-| **Worker 1** | **🌾 Daily Essentials & Fresh** | **36** | **≥ 60% OFF** | **Fresh Produce (Vegetables, Leafy & Seasonings, Cuts & Sprouts, Fruits)**, Atta, Rice, Basmati Rice, Toor/Moong/Urad Dal, Besan/Sooji/Maida, Rajma/Chola, Poha, Sunflower/Mustard/Olive Oils, Ghee, Spices & Salt, Ginger-Garlic Pastes, Paneer & Tofu, Butter, Cheese, Curd & Yogurt, Eggs, Bread & Buns, Fresh Bakery, **Dry Fruits (Cashews, Almonds, Dates, Pista, Berries)**. |
-| **Worker 2** | **🍿 Sweets, Snacks & Treats** | **40** | **≥ 70% OFF** | Chips & Crisps, Bhujia & Namkeens, Indian Snacks, Nachos, Puffs, Popcorn, Chocolates (Milk, Dark, Gift Boxes, Shared Packs, Wafers, Candies), Traditional Sweets (Kaju Katli, Gulab Jamun, Rasgulla, Mysore Pak, Ladoos, Chikki), Cookies, Cream Biscuits, Cakes, Rusks, Ice Cream (Tubs, Cones, Sticks, Kulfi), Instant & Korean Noodles, Veg & Non-Veg Frozen Snacks, Momos & Kebabs. |
-| **Worker 3** | **🛍️ Lifestyle, Home & Fashion** | **20** | **≥ 85% OFF** | Non-Toxic Cookware, Cookware, Kitchen Tools, 304 Stainless Steel, Serveware & Crockery, Bakeware & BBQ, Personal Care Appliances, Earphones & Headsets, Stationery (Pens, Notebooks, Office & School Supplies, Art & Craft), STEM & Learning, Books, Men's & Women's Innerwear, Footwear, Belts & Wallets. |
-| **Worker 4** | **🥤 Cold Drinks, Beverages & Spreads** | **30** | **≥ 70% OFF** | Soft Drinks, Fruit Juices, Energy & Hydration Drinks, Mango Drinks, Coconut Water, Soda & Mixers, Ice Tea & Kombucha, Diet Soft Drinks, Tea & Herbal Tea, Instant & Filter Coffee, Cold Coffee, Oats, Muesli & Granola, Cereals, Ketchup, Mayonnaise & Spreads, Peanut Butter, Chocolate Spreads, Jams, Honey & Vinegars, Asian Sauces & Dips. |
-| **Worker 5** | **🧴 Personal Care, Baby & Laundry** | **28** | **≥ 70% OFF** | Soaps, Shower Gels, Handwash, Body Lotions & Oils, Oral Care, Fragrance & Talc, Shampoo, Hair Oils & Serums, Conditioners & Masks, Face Wash & Scrubs, Creams & Sunscreen, Serums & Toners, Sanitary Pads, Period Panties, Baby Wipes & Bathing, Baby Lotions, Detergents (Liquid & Powder), Laundry Additives, Dishwash Gel, Floor & Toilet Cleaners, Mosquito & Cockroach Repellents. |
+| **Worker 1 (`fresh`)** | **🥦 Daily Fresh Produce & Meats** | **48** | **≥ 60% OFF** | Fresh Vegetables, Leafy Greens, Exotic Vegetables, Cuts & Sprouts, Fresh Fruits, Seasonal Fruits, Poultry, Mutton, Fish & Seafood, Paneer, Tofu, Fresh Bakery, Eggs & Dairy. |
+| **Worker 2 (`grocery`)** | **🌾 Daily Staples & Cooking Essentials** | **57** | **≥ 60% OFF** | Atta, Rice, Basmati Rice, Dals & Pulses (Toor, Moong, Urad, Chana), Besan, Sooji, Maida, Cooking Oils (Mustard, Sunflower, Olive), Ghee, Spices, Masalas, Salt, Dry Fruits & Nuts. |
+| **Worker 3 (`treats`)** | **🍫 Sweets, Chocolates & Bakery** | **56** | **≥ 70% OFF** | Premium Chocolates, Chocolate Gift Boxes, Traditional Mithai (Kaju Katli, Gulab Jamun, Rasgulla), Ice Cream Tubs & Cones, Cakes, Cookies, Cream Biscuits, Wafers. |
+| **Worker 4 (`munchies`)** | **🍿 Snacks, Munchies & Instant Foods** | **46** | **≥ 70% OFF** | Potato Chips, Bhujia & Namkeens, Nachos, Popcorn, Instant Noodles, Korean Ramen, Frozen Veg/Non-Veg Snacks, Momos, Ready-to-Eat Meals. |
+| **Worker 5 (`beverages`)** | **🥤 Cold Drinks, Nutrition & Spreads** | **49** | **≥ 70% OFF** | Soft Drinks, Fruit Juices, Energy & Hydration Drinks, Coconut Water, Cold & Hot Coffee, Tea & Herbal Tea, Breakfast Cereals, Muesli, Oats, Peanut Butter, Chocolate Spreads, Sauces. |
+| **Worker 6 (`personalCare`)** | **🧴 Personal Care, Bath & Skincare** | **47** | **≥ 70% OFF** | Soaps, Shower Gels, Hand Wash, Shampoos, Hair Conditioners & Serums, Face Wash & Scrubs, Moisturisers, Sunscreen, Sanitary Pads, Oral Care & Deodorants. |
+| **Worker 7 (`lifestyle`)** | **👶 Baby Care & Lifestyle** | **24** | **≥ 85% OFF** | Curated Baby Essentials (Baby Bathing, Baby Cream, Gifts & More, Baby Oral Care) + Cookware, Kitchen Tools, Crockery, Headphones, Stationery & Home Clearance. |
 
 ---
 
-### 🛠️ Customizing Workers & Adding Categories (Pet Care, Pooja Store, etc.)
+### 🧠 Smart Duplicate & Spam Suppression
 
-Certain departments (such as **Pet Supplies**, **Pooja Store**, **Health & Pharma**, **Paan Corner**, and **Fine Apparel**) were deliberately excluded from default workers to keep scans focused on high-demand essentials and allow lightning-fast ~25s execution without rate-limiting.
-
-If you want to track any of these categories for your personal bot:
-1. Open `swiggy-telegram-bot/config.json`.
-2. Locate the desired worker campaign (or create a new one).
-3. Add the subcategory object using its taxonomy data:
-   ```json
-   {
-     "category": "Pet Care",
-     "name": "Dog Food",
-     "id": "<taxonomy_id_from_swiggy_url>",
-     "taxonomyType": "IM Meatsy"
-   }
-   ```
-4. Commit and push — your GitHub Actions workers will immediately begin tracking the new aisle!
+To prevent flooding your Telegram with repeated notifications:
+- **10:00 AM IST (Morning Reset)**: Clears previous run tracking and sends the complete fresh morning deals catalog.
+- **Hourly Runs (11:00 AM – 10:00 PM IST)**:
+  - **Identical price**: Suppressed (not re-sent).
+  - **Price drops**: Alerted immediately (`PRICE_DROP`).
+  - **New deals**: Alerted (`NEW_DEAL`).
+  - **Restocked items**: Alerted when back in stock (`BACK_IN_STOCK`).
+- **Silent Exit**: If no deals meet the threshold, the bot exits silently without sending empty messages.
 
 ---
 
-### 🧠 Smart Consecutive Run Suppression (No Hourly Spam)
+## 🚀 Setup Your Personal Deal Hunter Bot (100% Free on GitHub Actions)
 
-To prevent sending repeated deals every single hour:
-- **10:00 AM IST (Morning Reset)**: Resets daily counters and delivers the complete morning deals catalog.
-- **Subsequent Runs (11:00 AM – 10:00 PM IST + 12:00 AM Midnight)**:
-  - **Same price consecutive hours**: **Suppressed** (not re-sent).
-  - **Price drops**: **Alerted** immediately (`PRICE_DROP`).
-  - **New deals**: **Alerted** (`NEW_DEAL`).
-  - **Returning deals**: If an item went out of stock and reappears after a few hours, it alerts as `BACK_IN_STOCK`.
-- **Silent when 0 deals**: If no new or price-dropped items meet the threshold, the worker exits completely silent.
-
----
-
-## 🚀 Run Your Own 24/7 Deal Hunter Bot (Free on GitHub Actions)
-
-You can easily set up your own personal Deal Hunter bot that scans 154 Instamart aisles every hour for your local dark store and delivers high-discount deals directly to your Telegram — completely free using GitHub Actions.
+Follow these simple steps to run your own 24/7 Deal Hunter bot for your local Swiggy Instamart pod.
 
 ### Step 1: Fork This Repository
 Click the **Fork** button at the top-right corner of this GitHub repository to copy it into your own GitHub account.
 
+---
+
 ### Step 2: Create Your Telegram Bot
 1. Open Telegram and search for [@BotFather](https://t.me/BotFather).
-2. Send `/newbot` and follow the prompts to choose a name and username.
-3. BotFather will provide an **HTTP API Token** (e.g. `8938917149:AAEukMEm9pu...`). Save this token.
-4. Search for [@userinfobot](https://t.me/userinfobot) on Telegram, tap **Start**, and copy your **Id** (e.g. `5747888529`). *(Or add your bot to a channel/group and use the channel ID)*.
-
-### Step 3: Find Your Swiggy Dark Store IDs
-1. Navigate to **[swiggy.com/instamart](https://www.swiggy.com/instamart)** in your browser (PC or mobile) and ensure your delivery location/address is selected.
-2. Click on **any category** (e.g. *Atta, Rice & Dal* or *Dairy, Bread & Eggs*).
-3. Look at your browser address bar URL. It will look like this:
-   ```
-   https://www.swiggy.com/instamart/category-listing?storeId=<your_store_id>&primaryStoreId=<your_primary_store_id>&secondaryStoreId=<optional_secondary_store_id>...
-   ```
-4. Extract the numeric IDs:
-   - `storeId` is your **`SWIGGY_STORE_ID`** (e.g. `1400216`).
-   - `primaryStoreId` is your **`SWIGGY_PRIMARY_STORE_ID`** *(Store ID and Primary ID are identical)*.
-   - `secondaryStoreId` is your **`SWIGGY_SECONDARY_STORE_ID`** *(Copy if present; if not present in your URL, leave it blank)*.
-
-### Step 4: Configure GitHub Repository Secrets
-In your forked GitHub repository:
-1. Navigate to **Settings** → **Secrets and variables** → **Actions**.
-2. Click **New repository secret** and add the following:
-
-| Secret Name | Description | Default / Required |
-| :--- | :--- | :--- |
-| `TELEGRAM_BOT_TOKEN` | Your Telegram Bot token from BotFather | **Required** |
-| `TELEGRAM_CHAT_ID` | Your Telegram User ID or Channel ID | **Required** |
-| `SWIGGY_STORE_ID` | Your local dark store pod ID | **Required** |
-| `SWIGGY_PRIMARY_STORE_ID` | Primary store ID (same as `SWIGGY_STORE_ID`) | **Required** |
-| `SWIGGY_SECONDARY_STORE_ID` | Secondary fallback store ID (if available in URL) | Optional |
-| `ESSENTIALS_MIN_DISCOUNT` | Custom alert threshold for Worker 1 | Optional (Default: `60`) |
-| `TREATS_MIN_DISCOUNT` | Custom alert threshold for Worker 2 | Optional (Default: `70`) |
-| `LIFESTYLE_MIN_DISCOUNT` | Custom alert threshold for Worker 3 | Optional (Default: `85`) |
-| `BEVERAGES_MIN_DISCOUNT` | Custom alert threshold for Worker 4 | Optional (Default: `70`) |
-| `PERSONAL_MIN_DISCOUNT` | Custom alert threshold for Worker 5 | Optional (Default: `70`) |
-
-*(Note: `SWIGGY_COOKIE` and `SWIGGY_DEVICE_ID` are optional; direct API requests automatically generate authentic device headers and signatures).*
-
-### Step 5: Enable Workflows & Run
-1. Go to the **Actions** tab in your forked repository.
-2. GitHub automatically disables scheduled workflows on forks by default. Click the green button: **"I understand my workflows, go ahead and enable them"**.
-3. Select **"Swiggy Instamart Keyword Deal Hunter"** in the left sidebar, click **Run workflow**, and check **Run workflow** to test it immediately!
-4. From now on, GitHub Actions will automatically wake up every hour between **10:00 AM and 10:00 PM IST**, scrape all 154 aisles across 5 parallel workers, suppress repeated alerts, and send fresh deals straight to your Telegram!
+2. Send `/newbot` and follow the prompts to choose a bot name and username (e.g. `MySwiggyDealsBot`).
+3. BotFather will provide an **HTTP API Token** (e.g. `8938917149:AAEukMEm9pu...`). Save this token — this is your `TELEGRAM_BOT_TOKEN`.
+4. Now search for [@userinfobot](https://t.me/userinfobot) on Telegram, tap **Start**, and copy your numeric **Id** (e.g. `5747888529`). This is your `TELEGRAM_CHAT_ID`.
+   > *Tip: If you want alerts sent to a Telegram Channel, create a public or private channel, add your bot as an Admin, and use the Channel Username (e.g. `@MyDealsChannel`) or Channel ID as `TELEGRAM_CHAT_ID`.*
 
 ---
 
-## 🧪 Local Testing & Development
+### Step 3: Find Your Swiggy Dark Store IDs
+1. Go to **[swiggy.com/instamart](https://www.swiggy.com/instamart)** in your browser and ensure your delivery address is selected.
+2. Click on **any category** (such as *Atta, Rice & Dal* or *Dairy, Bread & Eggs*).
+3. Look at your browser address bar URL. It will look like this:
+   ```
+   https://www.swiggy.com/instamart/category-listing?storeId=1400216&primaryStoreId=1400216&secondaryStoreId=1400217...
+   ```
+4. Extract the IDs from the URL:
+   - `storeId` → **`SWIGGY_STORE_ID`** (e.g. `1400216`)
+   - `primaryStoreId` → **`SWIGGY_PRIMARY_STORE_ID`** (same as `storeId`)
+   - `secondaryStoreId` → **`SWIGGY_SECONDARY_STORE_ID`** (if present in your URL; if not present, leave empty)
 
-Clone the repository and enter the bot folder:
-```bash
-git clone https://github.com/jairaj26/swiggy-instamart-deals.git
-cd swiggy-telegram-bot
-npm install
-```
+---
 
-Create a `.env` file (see `.env.example`):
-```env
-TELEGRAM_BOT_TOKEN=your_token_here
-TELEGRAM_CHAT_ID=your_chat_id_here
-MIN_DISCOUNT_PERCENT=70
+### Step 4: Configure GitHub Secrets
+In your forked GitHub repository:
+1. Navigate to **Settings** → **Secrets and variables** → **Actions**.
+2. Click **New repository secret** for each variable below:
 
-# Dark Store Pod IDs
-SWIGGY_STORE_ID=your_store_id_here
-SWIGGY_PRIMARY_STORE_ID=your_store_id_here
-SWIGGY_SECONDARY_STORE_ID=your_secondary_store_id_here
-```
+#### Required Secrets:
+| Secret Name | Value |
+| :--- | :--- |
+| `TELEGRAM_BOT_TOKEN` | Token provided by @BotFather |
+| `TELEGRAM_CHAT_ID` | Numeric Chat ID from @userinfobot (or channel username) |
+| `SWIGGY_STORE_ID` | Your local store pod ID from Swiggy URL |
+| `SWIGGY_PRIMARY_STORE_ID` | Same as `SWIGGY_STORE_ID` |
 
-Run test scans for each worker:
-```bash
-# Test Worker 1 (Essentials & Fresh - 36 aisles, ≥ 60% OFF)
-npm run test:essentials
+#### Optional Secrets:
+| Secret Name | Default | Description |
+| :--- | :---: | :--- |
+| `SWIGGY_SECONDARY_STORE_ID` | *(empty)* | Secondary store fallback ID if present in URL |
+| `FRESH_MIN_DISCOUNT` | `60` | Custom minimum % discount for Worker 1 (`fresh`) |
+| `GROCERY_MIN_DISCOUNT` | `60` | Custom minimum % discount for Worker 2 (`grocery`) |
+| `TREATS_MIN_DISCOUNT` | `70` | Custom minimum % discount for Worker 3 (`treats`) |
+| `MUNCHIES_MIN_DISCOUNT` | `70` | Custom minimum % discount for Worker 4 (`munchies`) |
+| `BEVERAGES_MIN_DISCOUNT` | `70` | Custom minimum % discount for Worker 5 (`beverages`) |
+| `PERSONAL_MIN_DISCOUNT` | `70` | Custom minimum % discount for Worker 6 (`personalCare`) |
+| `LIFESTYLE_MIN_DISCOUNT` | `85` | Custom minimum % discount for Worker 7 (`lifestyle`) |
 
-# Test Worker 2 (Sweets, Snacks & Treats - 40 aisles, ≥ 70% OFF)
-npm run test:treats
+---
 
-# Test Worker 3 (Lifestyle & Fashion - 20 aisles, ≥ 85% OFF)
-npm run test:lifestyle
+### Step 5: Enable Workflows & Test
+1. Go to the **Actions** tab in your forked repository.
+2. GitHub automatically pauses scheduled workflows on newly forked repositories. Click the green button: **"I understand my workflows, go ahead and enable them"**.
+3. Select **"Swiggy Instamart Keyword Deal Hunter"** from the left sidebar.
+4. Click **Run workflow** → select `Skip top-of-hour wait sync (run immediately)` → Click **Run workflow**.
+5. Within ~30 seconds, all 7 workers will execute in parallel and you will receive high-discount deals directly on Telegram!
+6. From now on, GitHub Actions runs automatically every hour from **10:00 AM to 10:00 PM IST**.
 
-# Test Worker 4 (Cold Drinks, Beverages & Spreads - 30 aisles, ≥ 70% OFF)
-npm run test:beverages
+---
 
-# Test Worker 5 (Personal Care, Baby & Laundry - 28 aisles, ≥ 70% OFF)
-npm run test:personal
-```
+## 🛠️ Customization Guide
+
+### 1. How to Adjust Discount Thresholds
+You have 3 ways to customize discount thresholds:
+
+- **Via GitHub Secrets (Recommended for Actions)**:
+  Add any of the optional secrets listed above (e.g. `GROCERY_MIN_DISCOUNT = 50`) in GitHub Secrets.
+- **Via Telegram Bot Commands (If running the interactive bot)**:
+  Send commands directly to your bot:
+  ```
+  /setdiscount grocery 50     # Sets grocery worker to >= 50%
+  /setdiscount fresh 55       # Sets fresh worker to >= 55%
+  /setdiscount all 65         # Sets all workers to >= 65%
+  /status                     # View current thresholds and store info
+  ```
+- **Via `swiggy-telegram-bot/config.json`**:
+  Open `config.json` and change the `"minDiscount"` field inside any campaign:
+  ```json
+  "fresh": {
+    "name": "Daily Fresh Produce & Meats",
+    "minDiscount": 55
+  }
+  ```
+
+---
+
+### 2. How to Add or Remove Subcategories
+All 327 subcategories are defined in [`swiggy-telegram-bot/config.json`](file:///d:/Projects/Swiggy/swiggy-telegram-bot/config.json).
+
+To add an aisle to any worker:
+1. Open `swiggy-telegram-bot/config.json`.
+2. Locate the worker campaign (e.g. `fresh`, `grocery`, `treats`, etc.).
+3. Add a new subcategory entry to its `subcategories` array:
+   ```json
+   {
+     "category": "Fresh Fruits",
+     "name": "Organic Apples",
+     "id": "<sub_category_filter_id>",
+     "taxonomyType": "Speciality taxonomy 1"
+   }
+   ```
+4. Commit and push changes. Your GitHub Actions runners will automatically include the new subcategory on the next scan!
+
+> [!TIP]
+> **How to find the subcategory `id`**:
+> Open DevTools (<kbd>F12</kbd>) → **Network** tab on Swiggy Instamart. When you click any subcategory filter, check the payload of the `category-listing/filter/v2` request for `filterId` and `categoryName`.
+
+---
+
+## 💻 Local Testing & Development
+
+If you want to run or test the bot on your local machine:
+
+1. Clone your repository:
+   ```bash
+   git clone https://github.com/jairaj26/swiggy-instamart-deals.git
+   cd swiggy-instamart-deals/swiggy-telegram-bot
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create your `.env` configuration file:
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in your `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `SWIGGY_STORE_ID`.
+
+4. Test individual workers locally:
+   ```bash
+   npm run test:fresh       # Scans Worker 1 (Fresh Produce & Meats)
+   npm run test:grocery     # Scans Worker 2 (Staples & Cooking Essentials)
+   npm run test:treats      # Scans Worker 3 (Sweets, Chocolates & Bakery)
+   npm run test:munchies    # Scans Worker 4 (Snacks & Instant Foods)
+   npm run test:beverages   # Scans Worker 5 (Cold Drinks & Nutrition)
+   npm run test:personal    # Scans Worker 6 (Personal Care & Bath)
+   npm run test:lifestyle   # Scans Worker 7 (Baby Care & Lifestyle)
+   ```
+
+5. Run the interactive 24/7 Telegram bot locally:
+   ```bash
+   npm start
+   ```
 
 ---
 
@@ -206,30 +260,30 @@ npm run test:personal
 
 ```
 .
-├── index.html                           # GitHub Pages setup portal for the Bookmarklet
+├── index.html                           # GitHub Pages setup portal for Deal Scout Bookmarklet
 ├── swiggy-hunter-v4.js                  # Bookmarklet unminified source code
 ├── swiggy-hunter-v4.min.js              # Bookmarklet minified production bundle
 ├── swiggy-hunter-v4.bookmarklet.txt     # Raw javascript:... bookmarklet link
 ├── .github/
 │   └── workflows/
-│       └── keyword-hunter.yml           # 5-Worker Parallel Deal Hunter workflow
+│       └── keyword-hunter.yml           # 7-Worker Parallel Deal Hunter GitHub Actions workflow
 ├── swiggy-telegram-bot/
-│   ├── config.json                      # 154 Subcategories & campaign configuration
+│   ├── config.json                      # 327 Subcategories & campaign configurations
 │   ├── package.json
 │   ├── .env.example
 │   └── src/
-│       ├── bot.js                       # Interactive Telegram bot handler
+│       ├── bot.js                       # Interactive Telegram bot handler (supports all 7 workers)
 │       ├── cron-runner.js               # CLI runner for GitHub Actions & cron jobs
 │       ├── dealTracker.js               # Deal state tracking & consecutive suppression
-│       ├── userManager.js               # User preference & threshold management
-│       ├── swiggyApi.js                 # Swiggy Instamart catalog API & browser scraper
+│       ├── userManager.js               # User preferences & threshold persistence
+│       ├── swiggyApi.js                 # Swiggy Instamart catalog API & scraper
 │       ├── cipher.js                    # Dynamic request headers & device signatures
 │       └── notifier.js                  # HTML-formatted Telegram batch alerts
-└── README.md                            # Main project documentation
+└── README.md                            # Comprehensive project documentation
 ```
 
 ---
 
 ## ⚖️ License & Disclaimer
 
-This project is built for personal productivity and deal scouting. It is not affiliated with, endorsed by, or sponsored by Bundl Technologies Private Limited (Swiggy). All trademarks belong to their respective owners.
+This project is built for personal productivity and deals scouting. It is not affiliated with, endorsed by, or sponsored by Bundl Technologies Private Limited (Swiggy). All brand names and trademarks belong to their respective owners.

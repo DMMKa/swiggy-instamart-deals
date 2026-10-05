@@ -312,7 +312,7 @@
       "tag": "🌾",
       "type": "subcategory",
       "enabled": true,
-      "minDiscount": 60,
+      "minDiscount": 50,
       "refreshCycle": "daily",
       "subcategories": [
         {
@@ -1010,7 +1010,7 @@
       "tag": "🍿",
       "type": "subcategory",
       "enabled": true,
-      "minDiscount": 70,
+      "minDiscount": 60,
       "refreshCycle": "daily",
       "subcategories": [
         {
@@ -1296,7 +1296,7 @@
       "tag": "🥤",
       "type": "subcategory",
       "enabled": true,
-      "minDiscount": 70,
+      "minDiscount": 40,
       "refreshCycle": "daily",
       "subcategories": [
         {

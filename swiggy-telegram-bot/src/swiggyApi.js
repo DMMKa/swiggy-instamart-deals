@@ -72,12 +72,23 @@ function parseItemsFromData(data) {
   const items = [];
   for (const v of rawList) {
     if (v.inventory?.inStock === false) continue;
-    const mrp = parseFloat(v.price?.mrp?.units || v.price?.mrp || 0);
-    const price = parseFloat(v.price?.offerPrice?.units || v.price?.offerPrice || 0);
-    const discount = mrp > 0 ? ((mrp - price) / mrp) * 100 : 0;
-    const roundedDiscount = Math.round(discount);
+    let mrp = parseFloat(v.price?.mrp?.units || v.price?.mrp || 0);
+    let price = parseFloat(v.price?.offerPrice?.units || v.price?.offerPrice || 0);
     const name = v.displayName;
     if (!name) continue;
+
+    let isBogo = false;
+    const promoString = JSON.stringify(v.offerTags || v.promotions || v.ribbons || {}).toLowerCase();
+    const nameStr = name.toLowerCase();
+    
+    if (promoString.includes('bogo') || promoString.includes('buy 1 get 1') || nameStr.includes('buy 1 get 1') || nameStr.includes('buy one get one')) {
+        isBogo = true;
+        price = price / 2;
+    }
+
+    const discount = mrp > 0 ? ((mrp - price) / mrp) * 100 : 0;
+    const roundedDiscount = Math.round(discount);
+    const stockCount = v.inventory?.quantity ?? v.inventory?.stock ?? v.inventory?.stockCount ?? null;
 
     const rawSku = v.skuId || v.spinId || v.spin;
     const skuId = rawSku || name;
@@ -88,11 +99,7 @@ function parseItemsFromData(data) {
       : null;
 
     const searchLink = `https://www.swiggy.com/instamart/search?custom_back=true&query=${encodeURIComponent(name)}`;
-    
-    // FIX: Prioritize global catalog IDs (parentProductId, productId, spinId) 
-    // over local warehouse tracking SKUs (skuId) for public links
     const urlId = v.spinId || v.spin || v.parentProductId || v.productId || v.skuId || rawSku;
-    
     const itemLink = urlId
       ? `https://www.swiggy.com/stores/instamart/item/${urlId}?share=true`
       : searchLink;
@@ -100,21 +107,11 @@ function parseItemsFromData(data) {
     const pack = v.quantityDescription || v.displayQuantity || v.quantity || v.weight || v.netQuantity || '';
 
     items.push({
-      skuId,
-      name,
-      parentProductId,
-      brand: v.brandName || v.brand || 'Instamart',
-      pack,
-      price,
-      mrp,
-      discount: roundedDiscount,
-      category: v.category || '',
-      subCategory: v.subCategoryType || '',
+      skuId, name, parentProductId, brand: v.brandName || v.brand || 'Instamart',
+      pack, price, mrp, discount: roundedDiscount, isBogo, stockCount,
+      category: v.category || '', subCategory: v.subCategoryType || '',
       rating: v.rating?.value ? `${v.rating.value} ★` : null,
-      ratingCount: v.rating?.count || null,
-      imageUrl,
-      itemLink,
-      searchLink
+      ratingCount: v.rating?.count || null, imageUrl, itemLink, searchLink
     });
   }
   return items;
@@ -159,25 +156,14 @@ const NOICE_SUB_COLLECTIONS = [
 
 async function scrapeWithBrowser(mode, storeConfig, options = {}) {
   const browserPath = findBrowserExecutable();
-  if (!browserPath) {
-    throw new Error('No compatible browser executable found (Edge/Chrome/Chromium).');
-  }
+  if (!browserPath) throw new Error('No compatible browser executable found.');
 
   const { sid, pid, secid } = storeConfig;
   const tmpProfile = path.join(os.tmpdir(), 'swiggy-bot-' + Math.random().toString(36).slice(2));
 
   const browser = await puppeteer.launch({
-    executablePath: browserPath,
-    headless: 'new',
-    userDataDir: tmpProfile,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-blink-features=AutomationControlled',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0'
-    ]
+    executablePath: browserPath, headless: 'new', userDataDir: tmpProfile,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled', '--disable-dev-shm-usage', '--disable-gpu', '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0']
   });
 
   try {
@@ -214,10 +200,7 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
             pageCount++;
             const url = `https://instamart.in/api/instamart/collection/items?collectionId=${coll.id}&isMonetised=true&storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}&offset=${offset}&serviceLine=INSTAMART`;
             try {
-              const res = await fetch(url, {
-                headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() },
-                credentials: 'include'
-              });
+              const res = await fetch(url, { headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() }, credentials: 'include' });
               if (res.status === 200) {
                 const json = await res.json();
                 if (json?.data) {
@@ -225,39 +208,11 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
                   const nextOffset = json.data?.pageOffset?.nextOffset;
                   if (nextOffset !== null && nextOffset !== undefined && nextOffset !== '' && Number(nextOffset) > offset) {
                     offset = Number(nextOffset);
-                  } else {
-                    keepPaging = false;
-                  }
-                } else {
-                  keepPaging = false;
-                }
-              } else {
-                failedQueue.push({ coll, offset });
-                keepPaging = false;
-              }
-            } catch (e) {
-              failedQueue.push({ coll, offset });
-              keepPaging = false;
-            }
+                  } else { keepPaging = false; }
+                } else { keepPaging = false; }
+              } else { failedQueue.push({ coll, offset }); keepPaging = false; }
+            } catch (e) { failedQueue.push({ coll, offset }); keepPaging = false; }
             await pSleep(400 + Math.random() * 300);
-          }
-        }
-
-        if (failedQueue.length > 0) {
-          await pSleep(2000);
-          for (const item of failedQueue) {
-            const url = `https://instamart.in/api/instamart/collection/items?collectionId=${item.coll.id}&isMonetised=true&storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}&offset=${item.offset}&serviceLine=INSTAMART`;
-            try {
-              const res = await fetch(url, {
-                headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() },
-                credentials: 'include'
-              });
-              if (res.status === 200) {
-                const json = await res.json();
-                if (json?.data) rawPages.push(json);
-              }
-            } catch (e) {}
-            await pSleep(600 + Math.random() * 300);
           }
         }
         return { rawPages };
@@ -272,10 +227,7 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
           pageCount++;
           const url = `https://instamart.in/api/instamart/collection/items?collectionId=397320&isMonetised=true&storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}&offset=${offset}&serviceLine=INSTAMART`;
           try {
-            const res = await fetch(url, {
-              headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() },
-              credentials: 'include'
-            });
+            const res = await fetch(url, { headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() }, credentials: 'include' });
             if (res.status !== 200) break;
             const json = await res.json();
             if (!json?.data) break;
@@ -284,12 +236,8 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
             const nextOffset = json.data?.pageOffset?.nextOffset;
             if (nextOffset !== null && nextOffset !== undefined && nextOffset !== '' && Number(nextOffset) > offset) {
               offset = Number(nextOffset);
-            } else {
-              break;
-            }
-          } catch (e) {
-            break;
-          }
+            } else { break; }
+          } catch (e) { break; }
           await pSleep(400 + Math.random() * 300);
         }
         return { rawPages };
@@ -298,10 +246,7 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
       if (m === 'category') {
         const cat = opt.categoryObj;
         const catUrl = `https://instamart.in/api/instamart/category-listing/v2?categoryName=${encodeURIComponent(cat.name)}&taxonomyType=${encodeURIComponent(cat.tType)}&offset=0&storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}`;
-        const catRes = await fetch(catUrl, {
-          headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() },
-          credentials: 'include'
-        });
+        const catRes = await fetch(catUrl, { headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() }, credentials: 'include' });
         const catJson = await catRes.json();
         const subs = [];
         if (catJson?.data?.cards) {
@@ -322,35 +267,18 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
         const rawPages = [];
         for (let i = 0; i < subs.length; i++) {
           const sub = subs[i];
-          if (window.onBrowserProgress) {
-            await window.onBrowserProgress(i + 1, subs.length, sub.name);
-          }
+          if (window.onBrowserProgress) await window.onBrowserProgress(i + 1, subs.length, sub.name);
 
           const filterUrl = `https://instamart.in/api/instamart/category-listing/filter/v2?storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}&pageNo=0&offset=0&page_name=category_listing_filter`;
-          const body = {
-            categoryName: cat.name,
-            filterName: sub.name,
-            filterId: sub.id,
-            taxonomyType: cat.tType,
-            items_offset: "0",
-            facets: [],
-            sortAttribute: "discountPercentHighToLow"
-          };
+          const body = { categoryName: cat.name, filterName: sub.name, filterId: sub.id, taxonomyType: cat.tType, items_offset: "0", facets: [], sortAttribute: "discountPercentHighToLow" };
 
           try {
-            const fRes = await fetch(filterUrl, {
-              method: 'POST',
-              headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() },
-              body: JSON.stringify(body),
-              credentials: 'include'
-            });
+            const fRes = await fetch(filterUrl, { method: 'POST', headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() }, body: JSON.stringify(body), credentials: 'include' });
             const fJson = await fRes.json();
             if (fJson?.data) rawPages.push(fJson);
           } catch (e) {}
-
           await pSleep(300 + Math.random() * 250);
         }
-
         return { rawPages, subcategoriesCount: subs.length };
       }
 
@@ -361,42 +289,21 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
 
         for (let i = 0; i < total; i++) {
           const item = subcategories[i];
-          if (window.onBrowserProgress) {
-            await window.onBrowserProgress(i + 1, total, item.name);
-          }
+          if (window.onBrowserProgress) await window.onBrowserProgress(i + 1, total, item.name);
 
           const filterUrl = `https://instamart.in/api/instamart/category-listing/filter/v2?storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}&pageNo=0&offset=0&page_name=category_listing_filter`;
-          const body = {
-            categoryName: item.category,
-            filterName: item.name,
-            filterId: item.id,
-            taxonomyType: item.taxonomyType || 'taxonomy 5',
-            items_offset: '0',
-            facets: [],
-            sortAttribute: 'discountPercentHighToLow'
-          };
+          const body = { categoryName: item.category, filterName: item.name, filterId: item.id, taxonomyType: item.taxonomyType || 'taxonomy 5', items_offset: '0', facets: [], sortAttribute: 'discountPercentHighToLow' };
 
           try {
-            const fRes = await fetch(filterUrl, {
-              method: 'POST',
-              headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() },
-              body: JSON.stringify(body),
-              credentials: 'include'
-            });
+            const fRes = await fetch(filterUrl, { method: 'POST', headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() }, body: JSON.stringify(body), credentials: 'include' });
             const fJson = await fRes.json();
             if (fJson?.data) {
-              fJson._meta = {
-                category: item.category,
-                subCategory: item.name,
-                dealType: opt.dealType || 'essential'
-              };
+              fJson._meta = { category: item.category, subCategory: item.name, dealType: opt.dealType || 'essential' };
               rawPages.push(fJson);
             }
           } catch (e) {}
-
           await pSleep(200 + Math.random() * 100);
         }
-
         return { rawPages };
       }
 
@@ -407,9 +314,7 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
 
         for (let i = 0; i < total; i++) {
           const item = keywordItems[i];
-          if (window.onBrowserProgress) {
-            await window.onBrowserProgress(i + 1, total, item.query);
-          }
+          if (window.onBrowserProgress) await window.onBrowserProgress(i + 1, total, item.query);
 
           let offset = 0;
           let keepPaging = true;
@@ -418,42 +323,23 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
           while (keepPaging && pageCount < 2) {
             pageCount++;
             const searchUrl = `https://instamart.in/api/instamart/search/v2?offset=${offset / 32}&ageConsent=false&storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}`;
-            const searchBody = {
-              facets: [],
-              sortAttribute: 'discountPercentHighToLow',
-              query: item.query,
-              search_results_offset: String(offset),
-              page_type: 'INSTAMART_SEARCH_PAGE'
-            };
+            const searchBody = { facets: [], sortAttribute: 'discountPercentHighToLow', query: item.query, search_results_offset: String(offset), page_type: 'INSTAMART_SEARCH_PAGE' };
 
             try {
-              const res = await fetch(searchUrl, {
-                method: 'POST',
-                headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() },
-                body: JSON.stringify(searchBody),
-                credentials: 'include'
-              });
-
+              const res = await fetch(searchUrl, { method: 'POST', headers: { 'accept': '*/*', 'content-type': 'application/json', 'matcher': makeMatcher() }, body: JSON.stringify(searchBody), credentials: 'include' });
               if (res.status === 200) {
                 const json = await res.json();
                 if (json?.data) {
                   const varList = [];
                   const findVars = (node) => {
                     if (!node || typeof node !== 'object') return;
-                    if (node.variations && Array.isArray(node.variations)) {
-                      varList.push(...node.variations);
-                    } else if (node.displayName && (node.price || node.offerPrice)) {
-                      varList.push(node);
-                    } else {
-                      Object.values(node).forEach(findVars);
-                    }
+                    if (node.variations && Array.isArray(node.variations)) { varList.push(...node.variations); } 
+                    else if (node.displayName && (node.price || node.offerPrice)) { varList.push(node); } 
+                    else { Object.values(node).forEach(findVars); }
                   };
                   findVars(json.data);
 
-                  if (!varList.length) {
-                    keepPaging = false;
-                    break;
-                  }
+                  if (!varList.length) { keepPaging = false; break; }
 
                   let maxDisc = 0;
                   for (const v of varList) {
@@ -466,22 +352,11 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
 
                   json._meta = { query: item.query, dealType: item.type, threshold: item.threshold };
                   rawPages.push(json);
-
-                  if (maxDisc < item.threshold) {
-                    keepPaging = false;
-                  } else {
-                    offset += 32;
-                  }
-                } else {
-                  keepPaging = false;
-                }
-              } else {
-                keepPaging = false;
-              }
-            } catch (e) {
-              keepPaging = false;
-            }
-
+                  if (maxDisc < item.threshold) keepPaging = false;
+                  else offset += 32;
+                } else { keepPaging = false; }
+              } else { keepPaging = false; }
+            } catch (e) { keepPaging = false; }
             await pSleep(350 + Math.random() * 200);
           }
         }
@@ -509,9 +384,7 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
         if (meta.threshold) item.threshold = meta.threshold;
 
         const existing = resultMap.get(item.name);
-        if (!existing || item.price < existing.price) {
-          resultMap.set(item.name, item);
-        }
+        if (!existing || item.price < existing.price) resultMap.set(item.name, item);
       }
     }
 
@@ -546,18 +419,14 @@ async function fetchNoiceDealsDirect(storeConfig) {
         item.subCategory = coll.name;
         item.dealType = 'noice';
         const existing = resultMap.get(item.name);
-        if (!existing || item.price < existing.price) {
-          resultMap.set(item.name, item);
-        }
+        if (!existing || item.price < existing.price) resultMap.set(item.name, item);
       }
 
       const nextOffset = json.data?.pageOffset?.nextOffset;
       if (nextOffset !== null && nextOffset !== undefined && nextOffset !== '' && Number(nextOffset) > offset) {
         offset = Number(nextOffset);
         await sleep(250);
-      } else {
-        keepPaging = false;
-      }
+      } else { keepPaging = false; }
     }
     await sleep(200);
   }
@@ -583,11 +452,7 @@ async function apiRequestSafe(url, method = 'GET', body = null, retry = 0) {
       (res.status === 200 && res.headers?.get('content-length') === '0');
 
     const isRateLimited =
-      res.status === 429 ||
-      res.status === 403 ||
-      json?.statusCode === 429 ||
-      json?.statusCode === 403 ||
-      isCloudfrontRateLimited;
+      res.status === 429 || res.status === 403 || json?.statusCode === 429 || json?.statusCode === 403 || isCloudfrontRateLimited;
 
     if (isRateLimited) {
       if (isCloudfrontRateLimited) return null;
@@ -597,29 +462,21 @@ async function apiRequestSafe(url, method = 'GET', body = null, retry = 0) {
       return apiRequestSafe(url, method, body, retry + 1);
     }
 
-    if (res.status === 200 && json && json.data) {
-      return json;
-    }
+    if (res.status === 200 && json && json.data) return json;
     return null;
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 async function fetchNoiceDeals(storeConfig) {
   if (process.env.USE_BROWSER !== 'false' && findBrowserExecutable()) {
-    try {
-      return await scrapeWithBrowser('noice', storeConfig);
-    } catch (err) {}
+    try { return await scrapeWithBrowser('noice', storeConfig); } catch (err) {}
   }
   return fetchNoiceDealsDirect(storeConfig);
 }
 
 async function fetchWednesdayBazaarDeals(storeConfig) {
   if (process.env.USE_BROWSER !== 'false' && findBrowserExecutable()) {
-    try {
-      return await scrapeWithBrowser('bazaar', storeConfig);
-    } catch (err) {}
+    try { return await scrapeWithBrowser('bazaar', storeConfig); } catch (err) {}
   }
   return [];
 }
@@ -664,9 +521,7 @@ async function fetchKeywordDealsDirect(storeConfig, keywordItems) {
         pi.threshold = item.threshold;
 
         const existing = resultMap.get(pi.name);
-        if (!existing || pi.price < existing.price) {
-          resultMap.set(pi.name, pi);
-        }
+        if (!existing || pi.price < existing.price) resultMap.set(pi.name, pi);
       }
 
       if (maxDisc < item.threshold) {
@@ -735,9 +590,7 @@ async function fetchEssentialAisleDealsDirect(storeConfig, options = {}) {
         it.dealType = dealType;
 
         const existing = resultMap.get(it.name);
-        if (!existing || it.price < existing.price) {
-          resultMap.set(it.name, it);
-        }
+        if (!existing || it.price < existing.price) resultMap.set(it.name, it);
       }
     } else {
       consecutiveBlocks++;

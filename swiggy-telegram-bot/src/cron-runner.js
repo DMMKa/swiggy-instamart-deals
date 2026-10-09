@@ -2,7 +2,14 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const config = require('../config.json');
 const { fetchEssentialAisleDeals, fetchNoiceDeals } = require('./swiggyApi');
-const { findAlertWorthyDeals, getCanonicalItemKey } = require('./dealTracker');
+
+// Safely import dealTracker to prevent undefined function errors
+const dealTracker = require('./dealTracker');
+if (!dealTracker || typeof dealTracker.findAlertWorthyDeals !== 'function') {
+  console.error('❌ FATAL ERROR: dealTracker.js is corrupted or missing "findAlertWorthyDeals" export. Please check the file.');
+  process.exit(1);
+}
+const { findAlertWorthyDeals, getCanonicalItemKey } = dealTracker;
 const { sendBatchAlerts } = require('./notifier');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -40,29 +47,7 @@ for (let i = 0; i < args.length; i++) {
 
 async function syncToHourMark(skip = false, targetBufferSecs = 30) {
   if (skip) return;
-
-  const istOffsetMs = 5.5 * 60 * 60 * 1000;
-  const istNow = new Date(Date.now() + istOffsetMs);
-  const mins = istNow.getUTCMinutes();
-  const secs = istNow.getUTCSeconds();
-  const ms = istNow.getUTCMilliseconds();
-
-  // If the runner boots slightly early, wait until the top/bottom of the hour
-  if (mins >= 55 && mins <= 59) {
-    const minsLeft = 60 - mins;
-    const msToWait = (minsLeft * 60 * 1000) - (secs * 1000) - ms + (targetBufferSecs * 1000);
-    if (msToWait > 0 && msToWait <= 6 * 60 * 1000) {
-      console.log(`[Sync] Waiting ${(msToWait / 1000).toFixed(1)}s to align with schedule...`);
-      await sleep(msToWait);
-    }
-  } else if (mins >= 25 && mins <= 29) {
-    const minsLeft = 30 - mins;
-    const msToWait = (minsLeft * 60 * 1000) - (secs * 1000) - ms + (targetBufferSecs * 1000);
-    if (msToWait > 0 && msToWait <= 6 * 60 * 1000) {
-      console.log(`[Sync] Waiting ${(msToWait / 1000).toFixed(1)}s to align with schedule...`);
-      await sleep(msToWait);
-    }
-  }
+  return; 
 }
 
 async function runCampaignAcrossAllStores(campaignKey, campaignCfg, options = {}) {
@@ -73,17 +58,18 @@ async function runCampaignAcrossAllStores(campaignKey, campaignCfg, options = {}
   const subcategories = campaignCfg.subcategories || [];
 
   console.log(`\n======================================================`);
-  console.log(`🚀 Scanning ${name} across all ${storesList.length} Dark Stores`);
+  console.log(`🚀 [PARALLEL SCAN] ${name} across ${storesList.length} Dark Stores`);
   console.log(`======================================================`);
 
   const mergedDealsMap = new Map();
 
-  for (let s = 0; s < storesList.length; s++) {
-    const store = storesList[s];
+  // 8000ms stagger to bypass WAF bursts and prevent GitHub Actions CPU crash (2-cores only)
+  const promises = storesList.map(async (store, s) => {
+    await sleep(s * 8000); 
+
     const currentStoreConfig = { sid: store.id, pid: store.pid, secid: store.secid };
     const storeLabel = store.label || store.id;
-
-    console.log(`\n🏪 [${s + 1}/${storesList.length}] Fetching for Store: ${storeLabel}...`);
+    console.log(`🏪 [Worker Started] Fetching Store: ${storeLabel}...`);
 
     let items = [];
     let attempts = 0;
@@ -101,7 +87,7 @@ async function runCampaignAcrossAllStores(campaignKey, campaignCfg, options = {}
       } catch (e) {
         console.error(`[${campaignKey}:${storeLabel}] Attempt ${attempts}/${maxAttempts} error:`, e.message);
       }
-      if (attempts < maxAttempts) await sleep(15 * 1000);
+      if (attempts < maxAttempts) await sleep(2000);
     }
 
     if (items.length > 0) {
@@ -115,37 +101,42 @@ async function runCampaignAcrossAllStores(campaignKey, campaignCfg, options = {}
         weeklyCategories,
         storeId: store.id
       });
+      console.log(`[${campaignKey}:${storeLabel}] Done! Found ${storeAlerts.length} alert-worthy deals.`);
+      return { store, storeLabel, alerts: storeAlerts };
+    }
+    
+    return { store, storeLabel, alerts: [] };
+  });
 
-      console.log(`[${campaignKey}:${storeLabel}] Found ${storeAlerts.length} alert-worthy deals.`);
+  const results = await Promise.all(promises);
 
-      for (const alert of storeAlerts) {
-        const itemKey = getCanonicalItemKey(alert);
+  for (const { store, storeLabel, alerts } of results) {
+    for (const alert of alerts) {
+      const itemKey = getCanonicalItemKey(alert);
 
-        if (!mergedDealsMap.has(itemKey)) {
-          mergedDealsMap.set(itemKey, {
-            ...alert,
-            stores: [{ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount }],
-            priceVaries: false
-          });
-        } else {
-          const existing = mergedDealsMap.get(itemKey);
-          existing.stores.push({ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount });
+      if (!mergedDealsMap.has(itemKey)) {
+        mergedDealsMap.set(itemKey, {
+          ...alert,
+          stores: [{ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount }],
+          priceVaries: false
+        });
+      } else {
+        const existing = mergedDealsMap.get(itemKey);
+        existing.stores.push({ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount });
 
-          if (alert.price !== existing.price) {
-            existing.priceVaries = true;
-          }
+        if (alert.price !== existing.price) existing.priceVaries = true;
 
-          if (alert.price < existing.price) {
-            existing.price = alert.price;
-            existing.discount = alert.discount;
-            existing.mrp = alert.mrp;
-            existing.searchLink = alert.searchLink;
-            existing.itemLink = alert.itemLink;
-          }
+        if (alert.price < existing.price) {
+          existing.price = alert.price;
+          existing.discount = alert.discount;
+          existing.mrp = alert.mrp;
+          existing.searchLink = alert.searchLink;
+          existing.itemLink = alert.itemLink;
+          existing.stockCount = alert.stockCount;
+          existing.isBogo = alert.isBogo;
         }
       }
     }
-    if (s < storesList.length - 1) await sleep(1500);
   }
 
   const mergedDeals = Array.from(mergedDealsMap.values());
@@ -160,7 +151,6 @@ async function runCampaignAcrossAllStores(campaignKey, campaignCfg, options = {}
 
 async function main() {
   console.log(`[CronRunner] Mode: ${mode.toUpperCase()} | Configured Stores: ${storesList.length}`);
-
   await syncToHourMark(skipSync);
 
   let bot = null;
@@ -239,16 +229,15 @@ async function main() {
   }
 
   if (runNoice) {
-    console.log(`\n--- Running The NOICE Store Scan across all stores ---`);
+    console.log(`\n--- [PARALLEL] Running The NOICE Store Scan across all stores ---`);
     const cfg = campaigns.noice || {};
     const noiceThreshold = parseInt(process.env.NOICE_MIN_DISCOUNT, 10) || cfg.minDiscount || minDiscount || 50;
     const mergedNoiceMap = new Map();
 
-    for (let s = 0; s < storesList.length; s++) {
-      const store = storesList[s];
+    const noicePromises = storesList.map(async (store, s) => {
+      await sleep(s * 8000); 
       const storeCfg = { sid: store.id, pid: store.pid, secid: store.secid };
       const storeLabel = store.label || store.id;
-
       try {
         const items = await fetchNoiceDeals(storeCfg);
         const alerts = findAlertWorthyDeals(items, noiceThreshold, 'noice', {
@@ -256,32 +245,39 @@ async function main() {
           weeklyResetDay: cfg.weeklyResetDay !== undefined ? cfg.weeklyResetDay : 1,
           storeId: store.id
         });
-
-        for (const alert of alerts) {
-          const itemKey = getCanonicalItemKey(alert);
-          if (!mergedNoiceMap.has(itemKey)) {
-            mergedNoiceMap.set(itemKey, {
-              ...alert,
-              stores: [{ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount }],
-              priceVaries: false
-            });
-          } else {
-            const existing = mergedNoiceMap.get(itemKey);
-            existing.stores.push({ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount });
-            if (alert.price !== existing.price) existing.priceVaries = true;
-            if (alert.price < existing.price) {
-              existing.price = alert.price;
-              existing.discount = alert.discount;
-              existing.mrp = alert.mrp;
-              existing.searchLink = alert.searchLink;
-              existing.itemLink = alert.itemLink;
-            }
-          }
-        }
+        return { store, storeLabel, alerts };
       } catch (e) {
         console.error(`[NOICE:${storeLabel}] Error:`, e.message);
+        return { store, storeLabel, alerts: [] };
       }
-      await sleep(1000);
+    });
+
+    const noiceResults = await Promise.all(noicePromises);
+    
+    for (const { store, storeLabel, alerts } of noiceResults) {
+      for (const alert of alerts) {
+        const itemKey = getCanonicalItemKey(alert);
+        if (!mergedNoiceMap.has(itemKey)) {
+          mergedNoiceMap.set(itemKey, {
+            ...alert,
+            stores: [{ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount }],
+            priceVaries: false
+          });
+        } else {
+          const existing = mergedNoiceMap.get(itemKey);
+          existing.stores.push({ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount });
+          if (alert.price !== existing.price) existing.priceVaries = true;
+          if (alert.price < existing.price) {
+            existing.price = alert.price;
+            existing.discount = alert.discount;
+            existing.mrp = alert.mrp;
+            existing.searchLink = alert.searchLink;
+            existing.itemLink = alert.itemLink;
+            existing.stockCount = alert.stockCount;
+            existing.isBogo = alert.isBogo;
+          }
+        }
+      }
     }
 
     const mergedNoice = Array.from(mergedNoiceMap.values());
@@ -291,7 +287,7 @@ async function main() {
     }
   }
 
-  console.log('\n[CronRunner] All 4 dark stores scanned and combined successfully.');
+  console.log('\n[CronRunner] All parallel scans complete.');
 }
 
 main().catch((err) => {

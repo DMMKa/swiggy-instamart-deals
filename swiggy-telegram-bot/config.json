@@ -1,8 +1,47 @@
 {
-  "store": {
-    "sid": "",
-    "pid": "",
-    "secid": ""
+  "stores": [
+    {
+      "id": "1404584",
+      "pid": "1404584",
+      "secid": "1404584",
+      "label": "Home (Pod 1)"
+    },
+    {
+      "id": "1398755",
+      "pid": "1398755",
+      "secid": "1398755",
+      "label": "Arjunnagar (Pod 2)"
+    },
+    {
+      "id": "1383383",
+      "pid": "1383383",
+      "secid": "1383383",
+      "label": "Dwarka (Pod 3)"
+    },
+    {
+      "id": "1398755",
+      "pid": "1398755",
+      "secid": "1398755",
+      "label": "Southex (Pod 4)"
+    },
+    {
+      "id": "1402248",
+      "pid": "1402248",
+      "secid": "1402248",
+      "label": "Badarpur(Pod 5)"
+    }
+  ],
+  "customRules": {
+    "aashirvaad": 40,
+    "tide": 40,
+    "atta": 40,
+    "Ground Coffee": 40,
+    "cashew": 50,
+    "almond": 50,
+    "ariel": 50,
+    "dal": 60,
+    "chocolate": 70,
+    "home decor": 70
   },
   "minDiscount": 70,
   "weeklyCategories": [
@@ -304,6 +343,12 @@
           "name": "Plant Based Meat",
           "id": "6822eeeded32000001e25b49",
           "taxonomyType": "Speciality taxonomy 1"
+        },
+        {
+          "category": "Meat and Seafood",
+          "name": "Raw Frozen",
+          "id": "693d82725485ff0001d3ec2a",
+          "taxonomyType": "taxonomy 10"
         }
       ]
     },
@@ -1296,7 +1341,12 @@
       "tag": "🥤",
       "type": "subcategory",
       "enabled": true,
-      "minDiscount": 40,
+      "minDiscount": 70,
+      "brandExceptions": {
+        "coffee beans": 40,
+        "grounded coffee": 40,
+        "ground coffee": 40
+      },
       "refreshCycle": "daily",
       "subcategories": [
         {
@@ -1601,6 +1651,9 @@
       "type": "subcategory",
       "enabled": true,
       "minDiscount": 70,
+      "brandExceptions": {
+        "khadi": 50
+      },
       "refreshCycle": "daily",
       "subcategories": [
         {

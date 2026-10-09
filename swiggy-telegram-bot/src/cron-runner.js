@@ -2,7 +2,7 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const config = require('../config.json');
 const { fetchEssentialAisleDeals, fetchNoiceDeals } = require('./swiggyApi');
-const { findAlertWorthyDeals } = require('./dealTracker');
+const { findAlertWorthyDeals, getCanonicalItemKey } = require('./dealTracker');
 const { sendBatchAlerts } = require('./notifier');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -11,23 +11,20 @@ const token = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 const minDiscount = parseInt(process.env.MIN_DISCOUNT_PERCENT, 10) || config.minDiscount || 70;
 
-const storeConfig = {
-  sid: process.env.SWIGGY_STORE_ID || config.store?.sid || '',
-  pid: process.env.SWIGGY_PRIMARY_STORE_ID || config.store?.pid || '',
-  secid: process.env.SWIGGY_SECONDARY_STORE_ID || config.store?.secid || ''
-};
+const storesList = config.stores && config.stores.length > 0 ? config.stores : [
+  {
+    id: process.env.SWIGGY_STORE_ID || config.store?.sid || '',
+    pid: process.env.SWIGGY_PRIMARY_STORE_ID || config.store?.pid || '',
+    secid: process.env.SWIGGY_SECONDARY_STORE_ID || config.store?.secid || '',
+    label: 'Primary Store'
+  }
+];
 
-if (!storeConfig.sid) {
-  console.error('❌ FATAL: SWIGGY_STORE_ID is missing or empty!');
-  console.error('   Please configure SWIGGY_STORE_ID in your GitHub Repository Secrets:');
-  console.error('   👉 Settings → Secrets and variables → Actions → New repository secret');
-  console.error('   • SWIGGY_STORE_ID = <your_dark_store_id>');
-  console.error('   • SWIGGY_PRIMARY_STORE_ID = <your_dark_store_id>');
-  console.error('   • SWIGGY_SECONDARY_STORE_ID = <secondary_id_or_same>');
+if (!storesList[0].id) {
+  console.error('❌ FATAL: No stores defined in config.json!');
   process.exit(1);
 }
 
-// Parse command line arguments
 const args = process.argv.slice(2);
 let mode = 'auto';
 let skipSync = false;
@@ -41,16 +38,8 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-/**
- * Synchronization and Staleness Guard:
- * - Checks for GitHub runner queue delays (>15 min late) on scheduled runs
- * - Pre-slot sync (:00:30 and :30:30 IST) when booted slightly early
- */
 async function syncToHourMark(skip = false, targetBufferSecs = 30) {
-  if (skip) {
-    console.log('[Sync] Synchronization skipped via --skip-sync.');
-    return;
-  }
+  if (skip) return;
 
   const istOffsetMs = 5.5 * 60 * 60 * 1000;
   const istNow = new Date(Date.now() + istOffsetMs);
@@ -58,127 +47,126 @@ async function syncToHourMark(skip = false, targetBufferSecs = 30) {
   const secs = istNow.getUTCSeconds();
   const ms = istNow.getUTCMilliseconds();
 
-  // Staleness Guard for GitHub scheduled runs:
-  // Slots run at :01 (mins 00-15) and :31 (mins 30-45).
-  // If runner queue delays execution by >15 minutes (mins 16-29 or 46-59),
-  // drop the stale run to prevent delayed alerts (e.g. 1:20 AM).
-  const isGitHubScheduled = process.env.GITHUB_EVENT_NAME === 'schedule';
-  if (isGitHubScheduled) {
-    const delayMins = (mins >= 30) ? (mins - 30) : mins;
-    if (delayMins > 15) {
-      console.warn(`[Sync] ⚠️ GitHub Actions runner queue was delayed by ~${delayMins}m past the target slot (:01/:31).`);
-      console.warn(`[Sync] Current time is ${String(istNow.getUTCHours()).padStart(2, '0')}:${String(mins).padStart(2, '0')} IST.`);
-      console.warn(`[Sync] Aborting stale scheduled run to avoid sending outdated deals.`);
-      process.exit(0);
-    }
-  }
-
-  // Pre-slot sync if booted slightly early (:55-:59 or :25-:29 IST)
+  // If the runner boots slightly early, wait until the top/bottom of the hour
   if (mins >= 55 && mins <= 59) {
     const minsLeft = 60 - mins;
     const msToWait = (minsLeft * 60 * 1000) - (secs * 1000) - ms + (targetBufferSecs * 1000);
     if (msToWait > 0 && msToWait <= 6 * 60 * 1000) {
-      console.log(`[Sync] Runner woke up early at ${mins}:${String(secs).padStart(2, '0')} IST.`);
-      console.log(`[Sync] Waiting ${(msToWait / 1000).toFixed(1)}s until :00:${String(targetBufferSecs).padStart(2, '0')} IST for fresh Swiggy hourly deals...`);
+      console.log(`[Sync] Waiting ${(msToWait / 1000).toFixed(1)}s to align with schedule...`);
       await sleep(msToWait);
     }
   } else if (mins >= 25 && mins <= 29) {
     const minsLeft = 30 - mins;
     const msToWait = (minsLeft * 60 * 1000) - (secs * 1000) - ms + (targetBufferSecs * 1000);
     if (msToWait > 0 && msToWait <= 6 * 60 * 1000) {
-      console.log(`[Sync] Runner woke up early at ${mins}:${String(secs).padStart(2, '0')} IST.`);
-      console.log(`[Sync] Waiting ${(msToWait / 1000).toFixed(1)}s until :30:${String(targetBufferSecs).padStart(2, '0')} IST for fresh Swiggy deals...`);
+      console.log(`[Sync] Waiting ${(msToWait / 1000).toFixed(1)}s to align with schedule...`);
       await sleep(msToWait);
     }
-  } else {
-    console.log(`[Sync] Running immediately at ${String(istNow.getUTCHours()).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')} IST.`);
   }
 }
 
-async function runSubcategoryCampaign(campaignKey, campaignCfg, options = {}) {
-  const { bot, chatId, storeConfig, threshold, timeString } = options;
+async function runCampaignAcrossAllStores(campaignKey, campaignCfg, options = {}) {
+  const { bot, chatId, storesList, threshold, timeString } = options;
   const name = campaignCfg.name || campaignKey;
   const tag = campaignCfg.tag || '';
   const headerName = tag ? `${tag} ${name}` : name;
   const subcategories = campaignCfg.subcategories || [];
 
-  console.log(`\n--- Running ${name} (${subcategories.length} Subcategories) ---`);
+  console.log(`\n======================================================`);
+  console.log(`🚀 Scanning ${name} across all ${storesList.length} Dark Stores`);
+  console.log(`======================================================`);
 
-  let items = [];
-  let attempts = 0;
-  const maxAttempts = 3;
+  const mergedDealsMap = new Map();
 
-  while (attempts < maxAttempts) {
-    attempts++;
-    try {
-      console.log(`[${campaignKey}] Fetching deals for ${subcategories.length} aisles (attempt ${attempts}/${maxAttempts})...`);
-      items = await fetchEssentialAisleDeals(storeConfig, {
-        subcategories,
-        campaignName: name,
-        dealType: campaignKey
+  for (let s = 0; s < storesList.length; s++) {
+    const store = storesList[s];
+    const currentStoreConfig = { sid: store.id, pid: store.pid, secid: store.secid };
+    const storeLabel = store.label || store.id;
+
+    console.log(`\n🏪 [${s + 1}/${storesList.length}] Fetching for Store: ${storeLabel}...`);
+
+    let items = [];
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        items = await fetchEssentialAisleDeals(currentStoreConfig, {
+          subcategories,
+          campaignName: name,
+          dealType: campaignKey
+        });
+        if (items && items.length > 0) break;
+      } catch (e) {
+        console.error(`[${campaignKey}:${storeLabel}] Attempt ${attempts}/${maxAttempts} error:`, e.message);
+      }
+      if (attempts < maxAttempts) await sleep(15 * 1000);
+    }
+
+    if (items.length > 0) {
+      const refreshCycle = campaignCfg.refreshCycle || 'daily';
+      const weeklyResetDay = campaignCfg.weeklyResetDay !== undefined ? campaignCfg.weeklyResetDay : 1;
+      const weeklyCategories = campaignCfg.weeklyCategories || config.weeklyCategories || ['Electronics and Appliances'];
+
+      const storeAlerts = findAlertWorthyDeals(items, threshold, campaignKey, {
+        refreshCycle,
+        weeklyResetDay,
+        weeklyCategories,
+        storeId: store.id
       });
 
-      if (items && items.length > 0) {
-        console.log(`[${campaignKey}] Scraped ${items.length} items across ${subcategories.length} aisles.`);
-        break;
-      } else {
-        console.warn(`[${campaignKey}] Attempt ${attempts}/${maxAttempts}: Swiggy returned 0 items (server may be busy).`);
-      }
-    } catch (e) {
-      console.error(`[${campaignKey}] Attempt ${attempts}/${maxAttempts} error:`, e.message);
-    }
+      console.log(`[${campaignKey}:${storeLabel}] Found ${storeAlerts.length} alert-worthy deals.`);
 
-    if (attempts < maxAttempts) {
-      const waitSecs = 75; // Wait ~1.25 minutes before retry
-      console.log(`[${campaignKey}] ⏳ Swiggy busy/failed. Waiting ${waitSecs}s before retry ${attempts + 1}/${maxAttempts}...`);
-      await sleep(waitSecs * 1000);
+      for (const alert of storeAlerts) {
+        const itemKey = getCanonicalItemKey(alert);
+
+        if (!mergedDealsMap.has(itemKey)) {
+          mergedDealsMap.set(itemKey, {
+            ...alert,
+            stores: [{ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount }],
+            priceVaries: false
+          });
+        } else {
+          const existing = mergedDealsMap.get(itemKey);
+          existing.stores.push({ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount });
+
+          if (alert.price !== existing.price) {
+            existing.priceVaries = true;
+          }
+
+          if (alert.price < existing.price) {
+            existing.price = alert.price;
+            existing.discount = alert.discount;
+            existing.mrp = alert.mrp;
+            existing.searchLink = alert.searchLink;
+            existing.itemLink = alert.itemLink;
+          }
+        }
+      }
     }
+    if (s < storesList.length - 1) await sleep(1500);
   }
 
-  if (items.length > 0) {
-    const refreshCycle = campaignCfg.refreshCycle || 'daily';
-    const weeklyResetDay = campaignCfg.weeklyResetDay !== undefined ? campaignCfg.weeklyResetDay : 1;
-    const weeklyCategories = campaignCfg.weeklyCategories || config.weeklyCategories || ['Electronics and Appliances'];
-    const alerts = findAlertWorthyDeals(items, threshold, campaignKey, {
-      refreshCycle,
-      weeklyResetDay,
-      weeklyCategories
-    });
-    console.log(`[${campaignKey}] Found ${alerts.length} alert-worthy deals (Discount ≥ ${threshold}% | Cycle: ${refreshCycle}).`);
-    if (bot && chatId && alerts.length > 0) {
-      await sendBatchAlerts(bot, chatId, alerts, {
-        timeString,
-        workerInfo: headerName
-      });
-    } else if (!alerts.length) {
-      console.log(`[${campaignKey}] No items met the minimum discount threshold (${threshold}%) this run.`);
-    }
-  } else {
-    console.error(`[${campaignKey}] All retry attempts failed or returned 0 items.`);
+  const mergedDeals = Array.from(mergedDealsMap.values());
+  mergedDeals.sort((a, b) => b.discount - a.discount);
+
+  console.log(`\n📊 [${campaignKey}] Merged Total: ${mergedDeals.length} unique deals across all stores.`);
+
+  if (bot && chatId && mergedDeals.length > 0) {
+    await sendBatchAlerts(bot, chatId, mergedDeals, { timeString, workerInfo: headerName });
   }
 }
 
 async function main() {
-  console.log(`[CronRunner] Mode: ${mode.toUpperCase()} | Store: ${storeConfig.sid}`);
+  console.log(`[CronRunner] Mode: ${mode.toUpperCase()} | Configured Stores: ${storesList.length}`);
 
-  // Synchronize to :00:00 IST if runner booted early in pre-hour window
   await syncToHourMark(skipSync);
 
   let bot = null;
   if (token && token !== 'your_bot_token_here') {
     bot = new TelegramBot(token, { polling: false });
-  } else {
-    console.warn('[CronRunner] No TELEGRAM_BOT_TOKEN configured. Will scrape and cache without sending Telegram alerts.');
   }
-
-  const now = new Date();
-  const istOffset = 5.5 * 60 * 60 * 1000;
-  const istDate = new Date(now.getTime() + istOffset);
-  const istDay = istDate.getUTCDay(); // 3 = Wednesday
-  const istHours = istDate.getUTCHours();
-  const istMinutes = istDate.getUTCMinutes();
-
-  console.log(`[CronRunner] Active IST Time: ${istDate.toUTCString()} (Day: ${istDay}, Hour: ${istHours}:${String(istMinutes).padStart(2, '0')})`);
 
   const timeFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Kolkata',
@@ -188,174 +176,122 @@ async function main() {
   });
   const timeString = timeFormatter.format(new Date()) + ' IST';
 
-  // Active Operating Window for Scheduled Runs: 9:01 AM to 12:01 AM midnight IST
-  // (Hours 9 to 23, plus Hour 0 up to 12:15 AM)
-  const isWithinHours = (istHours >= 9 && istHours <= 23) || (istHours === 0 && istMinutes <= 15);
-  const isGitHubScheduled = process.env.GITHUB_EVENT_NAME === 'schedule';
+  let runFresh = false, runGrocery = false, runTreats = false, runMunchies = false;
+  let runBeverages = false, runPersonal = false, runLifestyle = false, runNoice = false;
 
-  if (isGitHubScheduled && !isWithinHours) {
-    console.log(`[CronRunner] Outside active operating window (9:01 AM - 12:01 AM IST). Current time: ${istHours}:${String(istMinutes).padStart(2, '0')} IST. Exiting.`);
-    process.exit(0);
-  }
-
-  let runFresh = false;
-  let runGrocery = false;
-  let runTreats = false;
-  let runMunchies = false;
-  let runBeverages = false;
-  let runPersonal = false;
-  let runLifestyle = false;
-  let runNoice = false;
-
-  if (mode === 'fresh' || mode === 'produce') {
-    runFresh = true;
-  } else if (mode === 'grocery' || mode === 'staples') {
-    runGrocery = true;
-  } else if (mode === 'essentials' || mode === 'keywords' || mode === 'aisles') {
-    runFresh = true;
-    runGrocery = true;
-  } else if (mode === 'treats' || mode === 'sweets') {
-    runTreats = true;
-  } else if (mode === 'munchies' || mode === 'snacks') {
-    runMunchies = true;
-  } else if (mode === 'lifestyle' || mode === 'home' || mode === 'electronics' || mode === 'baby') {
-    runLifestyle = true;
-  } else if (mode === 'beverages' || mode === 'drinks' || mode === 'juices') {
-    runBeverages = true;
-  } else if (mode === 'personal' || mode === 'personalcare') {
-    runPersonal = true;
-  } else if (mode === 'noice') {
-    runNoice = true;
-  } else {
-    // Auto Mode:
-    // Scheduled window: 9:01 AM to 12:01 AM IST
-    if (isWithinHours) {
-      runFresh = true;
-      runGrocery = true;
-      runTreats = true;
-      runMunchies = true;
-      runBeverages = true;
-      runPersonal = true;
-      runLifestyle = true;
-    }
+  if (mode === 'fresh' || mode === 'produce') runFresh = true;
+  else if (mode === 'grocery' || mode === 'staples') runGrocery = true;
+  else if (mode === 'essentials' || mode === 'keywords' || mode === 'aisles') { runFresh = true; runGrocery = true; }
+  else if (mode === 'treats' || mode === 'sweets') runTreats = true;
+  else if (mode === 'munchies' || mode === 'snacks') runMunchies = true;
+  else if (mode === 'lifestyle' || mode === 'home' || mode === 'electronics' || mode === 'baby') runLifestyle = true;
+  else if (mode === 'beverages' || mode === 'drinks' || mode === 'juices') runBeverages = true;
+  else if (mode === 'personal' || mode === 'personalcare') runPersonal = true;
+  else if (mode === 'noice') runNoice = true;
+  else {
+    runFresh = true; runGrocery = true; runTreats = true; runMunchies = true;
+    runBeverages = true; runPersonal = true; runLifestyle = true;
   }
 
   const campaigns = config.campaigns || {};
+  const sharedOptions = { bot, chatId, storesList, timeString };
 
-  // 1. Worker 1: Daily Fresh Produce & Meats
   if (runFresh) {
     const cfg = campaigns.fresh || campaigns.essentials || {};
     const threshold = parseInt(process.env.FRESH_MIN_DISCOUNT || process.env.ESSENTIALS_MIN_DISCOUNT, 10) || cfg.minDiscount || 60;
-    await runSubcategoryCampaign('fresh', cfg, {
-      bot,
-      chatId,
-      storeConfig,
-      threshold,
-      timeString
-    });
+    await runCampaignAcrossAllStores('fresh', cfg, { ...sharedOptions, threshold });
   }
 
-  // 2. Worker 2: Daily Staples & Cooking Essentials
   if (runGrocery) {
     const cfg = campaigns.grocery || campaigns.essentials || {};
     const threshold = parseInt(process.env.GROCERY_MIN_DISCOUNT || process.env.ESSENTIALS_MIN_DISCOUNT, 10) || cfg.minDiscount || 60;
-    await runSubcategoryCampaign('grocery', cfg, {
-      bot,
-      chatId,
-      storeConfig,
-      threshold,
-      timeString
-    });
+    await runCampaignAcrossAllStores('grocery', cfg, { ...sharedOptions, threshold });
   }
 
-  // 3. Worker 3: Sweets, Chocolates & Bakery
   if (runTreats) {
     const cfg = campaigns.treats || {};
     const threshold = parseInt(process.env.TREATS_MIN_DISCOUNT, 10) || cfg.minDiscount || 70;
-    await runSubcategoryCampaign('treats', cfg, {
-      bot,
-      chatId,
-      storeConfig,
-      threshold,
-      timeString
-    });
+    await runCampaignAcrossAllStores('treats', cfg, { ...sharedOptions, threshold });
   }
 
-  // 4. Worker 4: Snacks, Munchies & Instant Foods
   if (runMunchies) {
     const cfg = campaigns.munchies || campaigns.treats || {};
     const threshold = parseInt(process.env.MUNCHIES_MIN_DISCOUNT || process.env.TREATS_MIN_DISCOUNT, 10) || cfg.minDiscount || 70;
-    await runSubcategoryCampaign('munchies', cfg, {
-      bot,
-      chatId,
-      storeConfig,
-      threshold,
-      timeString
-    });
+    await runCampaignAcrossAllStores('munchies', cfg, { ...sharedOptions, threshold });
   }
 
-  // 5. Worker 5: Cold Drinks, Nutrition & Spreads
   if (runBeverages) {
     const cfg = campaigns.beverages || {};
     const threshold = parseInt(process.env.BEVERAGES_MIN_DISCOUNT, 10) || cfg.minDiscount || 70;
-    await runSubcategoryCampaign('beverages', cfg, {
-      bot,
-      chatId,
-      storeConfig,
-      threshold,
-      timeString
-    });
+    await runCampaignAcrossAllStores('beverages', cfg, { ...sharedOptions, threshold });
   }
 
-  // 6. Worker 6: Personal Care, Bath & Skincare
   if (runPersonal) {
     const cfg = campaigns.personalCare || campaigns.personal || {};
     const threshold = parseInt(process.env.PERSONAL_MIN_DISCOUNT, 10) || cfg.minDiscount || 70;
-    await runSubcategoryCampaign('personalCare', cfg, {
-      bot,
-      chatId,
-      storeConfig,
-      threshold,
-      timeString
-    });
+    await runCampaignAcrossAllStores('personalCare', cfg, { ...sharedOptions, threshold });
   }
 
-  // 7. Worker 7: Baby Care & Lifestyle
   if (runLifestyle) {
     const cfg = campaigns.lifestyle || {};
     const threshold = parseInt(process.env.LIFESTYLE_MIN_DISCOUNT, 10) || cfg.minDiscount || 85;
-    await runSubcategoryCampaign('lifestyle', cfg, {
-      bot,
-      chatId,
-      storeConfig,
-      threshold,
-      timeString
-    });
+    await runCampaignAcrossAllStores('lifestyle', cfg, { ...sharedOptions, threshold });
   }
 
-
-  // 5. The NOICE Store Scan
   if (runNoice) {
-    console.log('\n--- Running The NOICE Store Scan ---');
+    console.log(`\n--- Running The NOICE Store Scan across all stores ---`);
     const cfg = campaigns.noice || {};
     const noiceThreshold = parseInt(process.env.NOICE_MIN_DISCOUNT, 10) || cfg.minDiscount || minDiscount || 50;
-    try {
-      const items = await fetchNoiceDeals(storeConfig);
-      console.log(`[NOICE] Scraped ${items.length} items.`);
-      const alerts = findAlertWorthyDeals(items, noiceThreshold, 'noice', {
-        refreshCycle: cfg.refreshCycle || 'weekly',
-        weeklyResetDay: cfg.weeklyResetDay !== undefined ? cfg.weeklyResetDay : 1
-      });
-      console.log(`[NOICE] Found ${alerts.length} new/improved deals >= ${noiceThreshold}%.`);
-      if (bot && chatId && alerts.length > 0) {
-        await sendBatchAlerts(bot, chatId, alerts, { timeString, workerInfo: '✨ The NOICE Store' });
+    const mergedNoiceMap = new Map();
+
+    for (let s = 0; s < storesList.length; s++) {
+      const store = storesList[s];
+      const storeCfg = { sid: store.id, pid: store.pid, secid: store.secid };
+      const storeLabel = store.label || store.id;
+
+      try {
+        const items = await fetchNoiceDeals(storeCfg);
+        const alerts = findAlertWorthyDeals(items, noiceThreshold, 'noice', {
+          refreshCycle: cfg.refreshCycle || 'weekly',
+          weeklyResetDay: cfg.weeklyResetDay !== undefined ? cfg.weeklyResetDay : 1,
+          storeId: store.id
+        });
+
+        for (const alert of alerts) {
+          const itemKey = getCanonicalItemKey(alert);
+          if (!mergedNoiceMap.has(itemKey)) {
+            mergedNoiceMap.set(itemKey, {
+              ...alert,
+              stores: [{ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount }],
+              priceVaries: false
+            });
+          } else {
+            const existing = mergedNoiceMap.get(itemKey);
+            existing.stores.push({ id: store.id, label: storeLabel, price: alert.price, discount: alert.discount });
+            if (alert.price !== existing.price) existing.priceVaries = true;
+            if (alert.price < existing.price) {
+              existing.price = alert.price;
+              existing.discount = alert.discount;
+              existing.mrp = alert.mrp;
+              existing.searchLink = alert.searchLink;
+              existing.itemLink = alert.itemLink;
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[NOICE:${storeLabel}] Error:`, e.message);
       }
-    } catch (e) {
-      console.error('[NOICE] Error:', e.message);
+      await sleep(1000);
+    }
+
+    const mergedNoice = Array.from(mergedNoiceMap.values());
+    mergedNoice.sort((a, b) => b.discount - a.discount);
+    if (bot && chatId && mergedNoice.length > 0) {
+      await sendBatchAlerts(bot, chatId, mergedNoice, { timeString, workerInfo: '✨ The NOICE Store' });
     }
   }
 
-  console.log('\n[CronRunner] Execution finished successfully.');
+  console.log('\n[CronRunner] All 4 dark stores scanned and combined successfully.');
 }
 
 main().catch((err) => {

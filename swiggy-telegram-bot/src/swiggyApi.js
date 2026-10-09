@@ -41,7 +41,8 @@ function extractVariations(node, out, parentInfo = {}) {
   const currentParent = {
     productId: node.productId || parentInfo.productId,
     parentProductId: node.parentProductId || parentInfo.parentProductId,
-    displayName: node.displayName || parentInfo.displayName
+    displayName: node.displayName || parentInfo.displayName,
+    spinId: node.spinId || node.spin || parentInfo.spinId
   };
 
   if (node.variations && Array.isArray(node.variations)) {
@@ -49,10 +50,13 @@ function extractVariations(node, out, parentInfo = {}) {
       if (currentParent.parentProductId) v.parentProductId = currentParent.parentProductId;
       if (currentParent.productId) v.productId = currentParent.productId;
       if (currentParent.displayName) v.parentDisplayName = currentParent.displayName;
+      if (currentParent.spinId && !v.spinId && !v.spin) v.spinId = currentParent.spinId;
       out.push(v);
     }
   } else if (node.displayName && (node.price || node.offerPrice)) {
     if (currentParent.parentProductId) node.parentProductId = currentParent.parentProductId;
+    if (currentParent.productId) node.productId = currentParent.productId;
+    if (currentParent.spinId && !node.spinId && !node.spin) node.spinId = currentParent.spinId;
     out.push(node);
   } else {
     Object.values(node).forEach((v) => extractVariations(v, out, currentParent));
@@ -75,7 +79,7 @@ function parseItemsFromData(data) {
     const name = v.displayName;
     if (!name) continue;
 
-    const rawSku = v.skuId || v.spinId;
+    const rawSku = v.skuId || v.spinId || v.spin;
     const skuId = rawSku || name;
     const parentProductId = v.parentProductId || v.productId || null;
     const imageId = v.imageIds?.[0] || v.imageId || '';
@@ -84,14 +88,23 @@ function parseItemsFromData(data) {
       : null;
 
     const searchLink = `https://www.swiggy.com/instamart/search?custom_back=true&query=${encodeURIComponent(name)}`;
-    const itemLink = searchLink;
+    
+    // FIX: Prioritize global catalog IDs (parentProductId, productId, spinId) 
+    // over local warehouse tracking SKUs (skuId) for public links
+    const urlId = v.spinId || v.spin || v.parentProductId || v.productId || v.skuId || rawSku;
+    
+    const itemLink = urlId
+      ? `https://www.swiggy.com/stores/instamart/item/${urlId}?share=true`
+      : searchLink;
+      
+    const pack = v.quantityDescription || v.displayQuantity || v.quantity || v.weight || v.netQuantity || '';
 
     items.push({
       skuId,
       name,
       parentProductId,
       brand: v.brandName || v.brand || 'Instamart',
-      pack: v.quantityDescription || '',
+      pack,
       price,
       mrp,
       discount: roundedDiscount,
@@ -144,7 +157,6 @@ const NOICE_SUB_COLLECTIONS = [
   { id: '290645', name: 'Protein Bars' }
 ];
 
-// Browser-backed scraper to reliably bypass Cloudflare / AWS WAF Challenge
 async function scrapeWithBrowser(mode, storeConfig, options = {}) {
   const browserPath = findBrowserExecutable();
   if (!browserPath) {
@@ -192,7 +204,6 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
         const rawPages = [];
         const failedQueue = [];
 
-        // Pass 1: Primary fetch with pacing
         for (let i = 0; i < collections.length; i++) {
           const coll = collections[i];
           let offset = 0;
@@ -232,7 +243,6 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
           }
         }
 
-        // Pass 2: Retry failed endpoints after cooldown
         if (failedQueue.length > 0) {
           await pSleep(2000);
           for (const item of failedQueue) {
@@ -250,7 +260,6 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
             await pSleep(600 + Math.random() * 300);
           }
         }
-
         return { rawPages };
       }
 
@@ -458,7 +467,6 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
                   json._meta = { query: item.query, dealType: item.type, threshold: item.threshold };
                   rawPages.push(json);
 
-                  // Early exit: if highest discount is below the threshold, no need for next page
                   if (maxDisc < item.threshold) {
                     keepPaging = false;
                   } else {
@@ -477,10 +485,8 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
             await pSleep(350 + Math.random() * 200);
           }
         }
-
         return { rawPages };
       }
-
       return { rawPages: [] };
     }, mode, sid, pid, secid, {
       noiceCollections: NOICE_SUB_COLLECTIONS,
@@ -518,7 +524,6 @@ async function scrapeWithBrowser(mode, storeConfig, options = {}) {
   }
 }
 
-// Direct fetch fallback for Noice across all 16 collections
 async function fetchNoiceDealsDirect(storeConfig) {
   const { sid, pid, secid } = storeConfig;
   const resultMap = new Map();
@@ -562,7 +567,6 @@ async function fetchNoiceDealsDirect(storeConfig) {
   return allItems;
 }
 
-// Fallback direct HTTP API client
 async function apiRequestSafe(url, method = 'GET', body = null, retry = 0) {
   const headers = getHeaders();
   try {
@@ -586,14 +590,9 @@ async function apiRequestSafe(url, method = 'GET', body = null, retry = 0) {
       isCloudfrontRateLimited;
 
     if (isRateLimited) {
-      if (isCloudfrontRateLimited) {
-        // CloudFront 0-byte response or WAF challenge requires valid cookie / browser session
-        console.warn('[SwiggyAPI] CloudFront challenge detected (0-byte response). Skipping retry.');
-        return null;
-      }
+      if (isCloudfrontRateLimited) return null;
       if (retry >= 1) return null;
       const waitSec = 3 + Math.floor(Math.random() * 3);
-      console.warn(`[SwiggyAPI] Rate-limited (retry ${retry + 1}/1). Waiting ${waitSec}s...`);
       await sleep(waitSec * 1000);
       return apiRequestSafe(url, method, body, retry + 1);
     }
@@ -603,19 +602,15 @@ async function apiRequestSafe(url, method = 'GET', body = null, retry = 0) {
     }
     return null;
   } catch (e) {
-    console.warn(`[SwiggyAPI] Network fetch error (${method} ${url}):`, e.message);
     return null;
   }
 }
 
-// Main exported functions
 async function fetchNoiceDeals(storeConfig) {
   if (process.env.USE_BROWSER !== 'false' && findBrowserExecutable()) {
     try {
       return await scrapeWithBrowser('noice', storeConfig);
-    } catch (err) {
-      console.warn('[SwiggyAPI] Browser scrape for NOICE failed, falling back to direct fetch…', err.message);
-    }
+    } catch (err) {}
   }
   return fetchNoiceDealsDirect(storeConfig);
 }
@@ -624,9 +619,7 @@ async function fetchWednesdayBazaarDeals(storeConfig) {
   if (process.env.USE_BROWSER !== 'false' && findBrowserExecutable()) {
     try {
       return await scrapeWithBrowser('bazaar', storeConfig);
-    } catch (err) {
-      console.warn('[SwiggyAPI] Browser scrape for Bazaar failed:', err.message);
-    }
+    } catch (err) {}
   }
   return [];
 }
@@ -634,17 +627,12 @@ async function fetchWednesdayBazaarDeals(storeConfig) {
 async function fetchCategoryDeals(catKey, storeConfig, onProgress = null) {
   const catObj = INSTAMART_CATEGORIES[catKey];
   if (!catObj) throw new Error(`Unknown category key: ${catKey}`);
-
   if (process.env.USE_BROWSER !== 'false' && findBrowserExecutable()) {
-    return await scrapeWithBrowser('category', storeConfig, {
-      categoryObj: catObj,
-      onProgress
-    });
+    return await scrapeWithBrowser('category', storeConfig, { categoryObj: catObj, onProgress });
   }
   return [];
 }
 
-// Direct fetch fallback for keywords
 async function fetchKeywordDealsDirect(storeConfig, keywordItems) {
   const { sid, pid, secid } = storeConfig;
   const resultMap = new Map();
@@ -658,11 +646,8 @@ async function fetchKeywordDealsDirect(storeConfig, keywordItems) {
       pageCount++;
       const searchUrl = `https://instamart.in/api/instamart/search/v2?offset=${offset / 32}&ageConsent=false&storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}`;
       const searchBody = {
-        facets: [],
-        sortAttribute: 'discountPercentHighToLow',
-        query: item.query,
-        search_results_offset: String(offset),
-        page_type: 'INSTAMART_SEARCH_PAGE'
+        facets: [], sortAttribute: 'discountPercentHighToLow', query: item.query,
+        search_results_offset: String(offset), page_type: 'INSTAMART_SEARCH_PAGE'
       };
 
       const json = await apiRequestSafe(searchUrl, 'POST', searchBody);
@@ -710,22 +695,13 @@ async function fetchKeywordDeals(storeConfig, options = {}) {
 
   const totalChunks = options.totalChunks || 1;
   const chunkIndex = options.chunkIndex || 0;
-
   const keywordItems = allKeywords.filter((_, idx) => idx % totalChunks === chunkIndex);
-
-  console.log(`[SwiggyAPI] Running Keyword Deal Hunter for ${keywordItems.length}/${allKeywords.length} queries (Chunk ${chunkIndex + 1}/${totalChunks})`);
 
   if (process.env.USE_BROWSER !== 'false' && findBrowserExecutable()) {
     try {
-      return await scrapeWithBrowser('keywords', storeConfig, {
-        keywordItems,
-        onProgress: options.onProgress
-      });
-    } catch (err) {
-      console.warn('[SwiggyAPI] Browser scrape for keywords failed, falling back to direct fetch…', err.message);
-    }
+      return await scrapeWithBrowser('keywords', storeConfig, { keywordItems, onProgress: options.onProgress });
+    } catch (err) {}
   }
-
   return fetchKeywordDealsDirect(storeConfig, keywordItems);
 }
 
@@ -737,25 +713,16 @@ async function fetchEssentialAisleDealsDirect(storeConfig, options = {}) {
   const { sid, pid, secid } = storeConfig;
   const resultMap = new Map();
 
-  if (!sid) {
-    console.error('[SwiggyAPI] Aborting: Store ID is missing or empty! Cannot query catalog.');
-    return [];
-  }
-
-  console.log(`[SwiggyAPI] Scanning ${subcategories.length} ${campaignName} for Store ${sid}...`);
+  if (!sid) return [];
 
   let consecutiveBlocks = 0;
   for (let i = 0; i < subcategories.length; i++) {
     const item = subcategories[i];
     const filterUrl = `https://instamart.in/api/instamart/category-listing/filter/v2?storeId=${sid}&primaryStoreId=${pid}&secondaryStoreId=${secid}&pageNo=0&offset=0&page_name=category_listing_filter`;
     const body = {
-      categoryName: item.category,
-      filterName: item.name,
-      filterId: item.id,
-      taxonomyType: item.taxonomyType || 'taxonomy 5',
-      items_offset: '0',
-      facets: [],
-      sortAttribute: 'discountPercentHighToLow'
+      categoryName: item.category, filterName: item.name, filterId: item.id,
+      taxonomyType: item.taxonomyType || 'taxonomy 5', items_offset: '0',
+      facets: [], sortAttribute: 'discountPercentHighToLow'
     };
 
     const json = await apiRequestSafe(filterUrl, 'POST', body);
@@ -774,17 +741,13 @@ async function fetchEssentialAisleDealsDirect(storeConfig, options = {}) {
       }
     } else {
       consecutiveBlocks++;
-      if (consecutiveBlocks >= 4) {
-        console.warn(`[SwiggyAPI] CloudFront WAF challenge active (4 consecutive blocked requests). Halting scan to prevent IP block.`);
-        break;
-      }
+      if (consecutiveBlocks >= 4) break;
     }
     await sleep(350);
   }
 
   const allItems = Array.from(resultMap.values());
   allItems.sort((a, b) => b.discount - a.discount);
-  console.log(`[SwiggyAPI] Scraped ${allItems.length} unique items across ${subcategories.length} ${campaignName}.`);
   return allItems;
 }
 
@@ -795,34 +758,17 @@ async function fetchEssentialAisleDeals(storeConfig, options = {}) {
   const dealType = options.dealType || 'essential';
   const canUseBrowser = process.env.USE_BROWSER !== 'false' && Boolean(findBrowserExecutable());
 
-  // Strategy 1: Try ultra-fast Direct HTTP fetch first (runs in ~15-20s if cookie or IP is clean)
   if (process.env.USE_BROWSER !== 'true') {
     const directItems = await fetchEssentialAisleDealsDirect(storeConfig, options);
-    if (directItems && directItems.length > 0) {
-      return directItems;
-    }
-    // If direct fetch returned 0 items due to CloudFront WAF challenge and a browser is available, fallback to browser
-    if (canUseBrowser) {
-      console.warn(`[SwiggyAPI] Direct HTTP fetch yielded 0 items (CloudFront WAF challenge). Automatically falling back to headless browser…`);
-    } else {
-      return directItems;
-    }
+    if (directItems && directItems.length > 0) return directItems;
+    if (!canUseBrowser) return directItems;
   }
 
-  // Strategy 2: Headless Browser scraping (solves CloudFront WAF challenges automatically)
   if (canUseBrowser) {
     try {
-      console.log(`[SwiggyAPI] Scraping ${subcategories.length} ${campaignName} via Browser...`);
-      return await scrapeWithBrowser('aisles', storeConfig, {
-        subcategories,
-        dealType,
-        campaignName
-      });
-    } catch (err) {
-      console.error(`[SwiggyAPI] Browser scrape for ${campaignName} failed:`, err.message);
-    }
+      return await scrapeWithBrowser('aisles', storeConfig, { subcategories, dealType, campaignName });
+    } catch (err) {}
   }
-
   return [];
 }
 

@@ -8,21 +8,35 @@ function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
-/**
- * Compact deal format:
- * Product Name
- * MRP: ₹X | Price: ₹Y | Z% OFF
- * Click here (direct search link)
- */
 function formatCompactItem(deal, index = null) {
-  const directUrl = deal.searchLink || `https://www.swiggy.com/instamart/search?custom_back=true&query=${encodeURIComponent(deal.name)}`;
-  const safeUrl = directUrl.replace(/"/g, '%22');
   const num = index !== null ? `${index}. ` : '• ';
 
+  let displayName = deal.name || '';
+  const pack = (deal.pack || '').trim();
+  if (pack && !displayName.toLowerCase().includes(pack.toLowerCase())) {
+    displayName = `${displayName} (${pack})`;
+  }
+
+  let priceLine = '';
+  let locationLine = '';
+
+  if (deal.stores && deal.stores.length > 0) {
+    if (deal.priceVaries || deal.stores.some(s => s.price !== deal.price)) {
+      priceLine = `MRP: ₹${deal.mrp} | Best Price: ₹${deal.price} | <b>${deal.discount}% OFF</b>`;
+      const details = deal.stores.map((s) => `${s.label} (₹${s.price})`).join(', ');
+      locationLine = `\n📍 Available at: <i>${escapeHtml(details)}</i>`;
+    } else {
+      priceLine = `MRP: ₹${deal.mrp} | Price: ₹${deal.price} | <b>${deal.discount}% OFF</b>`;
+      const names = deal.stores.map((s) => s.label).join(', ');
+      locationLine = `\n📍 Available at: <i>${escapeHtml(names)}</i>`;
+    }
+  } else {
+    priceLine = `MRP: ₹${deal.mrp} | Price: ₹${deal.price} | <b>${deal.discount}% OFF</b>`;
+  }
+
   return (
-`${num}<b>${escapeHtml(deal.name)}</b>
-MRP: ₹${deal.mrp} | Price: ₹${deal.price} | <b>${deal.discount}% OFF</b>
-<a href="${safeUrl}">Click here</a>`
+`${num}<b>${escapeHtml(displayName)}</b>
+${priceLine}${locationLine}`
   );
 }
 
@@ -32,44 +46,48 @@ function formatDealMessage(deal) {
 
 async function sendDealAlert(bot, chatId, deal) {
   const text = formatCompactItem(deal);
-
   try {
-    await bot.sendMessage(chatId, text, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true
-    });
+    await bot.sendMessage(chatId, text, { parse_mode: 'HTML', disable_web_page_preview: true });
     return true;
   } catch (err) {
-    console.error('[Notifier] Failed to send alert for:', deal.name, err.message);
     return false;
   }
 }
 
-/**
- * Clubs deals together into consolidated messages (one message per worker),
- * chunking only if character length exceeds Telegram's 4096 character limit.
- */
 async function sendBatchAlerts(bot, chatId, deals, options = {}) {
   if (!deals || !deals.length) return;
-  console.log(`[Notifier] Sending ${deals.length} deals in consolidated message(s) to chat ${chatId}…`);
 
   const timeTag = options.timeString ? ` • ${options.timeString}` : '';
-  const headerTag = options.workerInfo
-    ? `<b>[${options.workerInfo} • ${deals.length} Found${timeTag}]</b>\n\n`
-    : `<b>[Instamart Deals • ${deals.length} Found${timeTag}]</b>\n\n`;
+  const topHeader = options.workerInfo
+    ? `<b>[${options.workerInfo} • ${deals.length} Deals Found${timeTag}]</b>\n\n`
+    : `<b>[Instamart Deals • ${deals.length} Deals Found${timeTag}]</b>\n\n`;
+
+  // UPDATED GROUPS: Removed the "40% to 70%" header completely.
+  const groups = [
+    { title: '🚨 <b>PRICE ERRORS & GLITCHES</b> 🚨', items: deals.filter(d => d.tier === 'GLITCH') },
+    { title: '🔥 <b>70% & ABOVE OFF</b> 🔥', items: deals.filter(d => d.tier === 'TIER_70') },
+    { title: '✨ <b>SPECIAL BRAND DEALS</b> ✨', items: deals.filter(d => d.tier === 'TIER_40' || d.tier === 'TIER_LOW') }
+  ];
 
   const messages = [];
-  let currentMsg = headerTag;
+  let currentMsg = topHeader;
 
-  for (let i = 0; i < deals.length; i++) {
-    const itemText = formatCompactItem(deals[i], i + 1) + '\n\n';
-
-    // Leave a safe margin below Telegram's 4096 character limit
-    if ((currentMsg + itemText).length > 3800) {
-      messages.push(currentMsg.trim());
-      currentMsg = itemText;
-    } else {
-      currentMsg += itemText;
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+    
+    let groupHeader = `\n${group.title}\n`;
+    
+    for (let i = 0; i < group.items.length; i++) {
+      const itemText = formatCompactItem(group.items[i], i + 1) + '\n\n';
+      
+      if ((currentMsg + groupHeader + itemText).length > 3800) {
+        messages.push(currentMsg.trim());
+        currentMsg = groupHeader + itemText; 
+        groupHeader = ''; 
+      } else {
+        currentMsg += groupHeader + itemText;
+        groupHeader = ''; 
+      }
     }
   }
 
@@ -92,9 +110,4 @@ async function sendBatchAlerts(bot, chatId, deals, options = {}) {
   }
 }
 
-module.exports = {
-  formatCompactItem,
-  formatDealMessage,
-  sendDealAlert,
-  sendBatchAlerts
-};
+module.exports = { formatCompactItem, formatDealMessage, sendDealAlert, sendBatchAlerts };

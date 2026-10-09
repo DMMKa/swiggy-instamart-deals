@@ -126,21 +126,17 @@ function findAlertWorthyDeals(items, minDiscount = 70, campaignKey = 'default', 
     let alertType = 'NEW_DEAL';
 
     if (!prev) {
-      // Brand new item never seen before
       shouldAlert = true;
     } else {
       const lastAlertPrice = prev.lastAlertedPrice !== undefined ? prev.lastAlertedPrice : null;
       const lastSeenPrice = prev.price !== undefined ? prev.price : null;
 
       if (lastAlertPrice === null) {
-        // Was seen before but wasn't cheap enough to alert, now it is
         shouldAlert = true;
       } else if (item.price < lastAlertPrice) {
-        // STRICT RULE: Price dropped FURTHER than the last time we shared it
         shouldAlert = true;
         alertType = 'PRICE_DROP';
       } else if (lastSeenPrice !== null && item.price < lastSeenPrice && item.price <= lastAlertPrice) {
-        // STRICT RULE: Price became expensive yesterday, but dropped BACK to deal price today
         shouldAlert = true;
       }
     }
@@ -157,7 +153,6 @@ function findAlertWorthyDeals(items, minDiscount = 70, campaignKey = 'default', 
         firstSeen: prev ? prev.firstSeen : now, lastSeen: now
       };
     } else {
-      // Update cache silently without sending telegram alert
       seenInCurrentRun.set(itemKey, { price: item.price });
       if (!cache.items[itemKey]) {
         cache.items[itemKey] = {

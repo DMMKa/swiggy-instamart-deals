@@ -2,11 +2,10 @@ name: Swiggy Instamart Keyword Deal Hunter
 
 on:
   schedule:
-    # 30-Minute Interval Deal Hunter (09:01 AM to 12:01 AM midnight IST):
-    # Slot 1 (:01 past hour): 09:01 AM IST (03:31 UTC) through 12:01 AM midnight IST (18:31 UTC)
-    - cron: '31 3-18 * * *'
-    # Slot 2 (:31 past hour): 09:31 AM IST (04:01 UTC) through 11:31 PM IST (18:01 UTC)
+    # Daytime (Hourly at :31): 09:31 AM to 11:31 PM IST (04:01 to 18:01 UTC)
     - cron: '1 4-18 * * *'
+    # Overnight (Every 2 Hours at :31): 01:31, 03:31, 05:31, 07:31 AM IST (20:01, 22:01, 00:01, 02:01 UTC)
+    - cron: '1 0,2,20,22 * * *'
   workflow_dispatch:
     inputs:
       skip_sync:
@@ -19,7 +18,7 @@ jobs:
   hunt:
     name: Worker (${{ matrix.worker }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -52,9 +51,6 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SWIGGY_STORE_ID: ${{ secrets.SWIGGY_STORE_ID }}
-          SWIGGY_PRIMARY_STORE_ID: ${{ secrets.SWIGGY_PRIMARY_STORE_ID }}
-          SWIGGY_SECONDARY_STORE_ID: ${{ secrets.SWIGGY_SECONDARY_STORE_ID }}
           SWIGGY_COOKIE: ${{ secrets.SWIGGY_COOKIE }}
           FRESH_MIN_DISCOUNT: ${{ secrets.FRESH_MIN_DISCOUNT || secrets.ESSENTIALS_MIN_DISCOUNT }}
           GROCERY_MIN_DISCOUNT: ${{ secrets.GROCERY_MIN_DISCOUNT || secrets.ESSENTIALS_MIN_DISCOUNT }}

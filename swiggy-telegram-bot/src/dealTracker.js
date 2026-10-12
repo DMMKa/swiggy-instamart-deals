@@ -72,14 +72,27 @@ function evaluateCustomRules(item, baseThreshold) {
     isGlitch = true;
   }
 
-  let customThreshold = 70;
+  let customThreshold = baseThreshold;
 
+  // --- Original Rules ---
   if (brand.includes('aashirvaad') || name.includes('aashirvaad')) customThreshold = 40;
   else if (brand.includes('tide') || name.includes('tide')) customThreshold = 40;
   else if (name.includes('atta') || name.includes('coffee')) customThreshold = 40;
   else if (name.includes('cashew') || name.includes('almond') || brand.includes('ariel')) customThreshold = 50;
   else if (name.includes('dal')) customThreshold = 60;
   else if (name.includes('chocolate') || cat.includes('home decor')) customThreshold = 70;
+  
+  // --- Cleaning Supplies ---
+  else if (brand.includes('vim') || name.includes('vim')) customThreshold = 40;
+  
+  // --- Targeted Beauty & Personal Care (Strict 70% threshold) ---
+  else if (brand.includes('loreal') || brand.includes("l'oreal") || name.includes('loreal') || name.includes("l'oreal")) customThreshold = 70;
+  else if (brand.includes('nivea') || name.includes('nivea')) customThreshold = 70;
+  else if (brand.includes('be neude') || name.includes('be neude')) customThreshold = 70;
+  else if (brand.includes('ajmal') || name.includes('ajmal')) customThreshold = 70;
+  else if (brand.includes('himalaya') || name.includes('himalaya')) customThreshold = 70;
+  else if (brand.includes('pantene') || name.includes('pantene')) customThreshold = 70;
+  else if (name.includes('shampoo') || name.includes('body lotion') || name.includes('face wash') || name.includes('hair oil')) customThreshold = 70;
 
   let tier = 'TIER_LOW';
   if (isGlitch) tier = 'GLITCH';

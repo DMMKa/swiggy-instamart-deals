@@ -66,26 +66,31 @@ function evaluateCustomRules(item, baseThreshold) {
   const brand = (item.brand || '').toLowerCase();
   const cat = (item.category || '').toLowerCase() + ' ' + (item.subCategory || '').toLowerCase();
 
+  const isElectronics = cat.includes('electronic') || cat.includes('appliance') || cat.includes('mobile') || cat.includes('earphone') || cat.includes('laptop');
+
   let isGlitch = false;
-  const isPremiumCat = cat.includes('appliance') || cat.includes('skincare') || cat.includes('electronic');
+  const isPremiumCat = isElectronics || cat.includes('skincare');
   if (item.price <= 50 && (isPremiumCat || item.mrp >= 400)) {
     isGlitch = true;
   }
 
+  // Threshold calculation
   let customThreshold = baseThreshold;
 
-  // --- Original Rules ---
-  if (brand.includes('aashirvaad') || name.includes('aashirvaad')) customThreshold = 40;
+  // Rule 1: Electronics strictly requires 90%
+  if (isElectronics) {
+    customThreshold = 90;
+  }
+  // Rule 2: High priority essentials & cleaning
+  else if (brand.includes('aashirvaad') || name.includes('aashirvaad')) customThreshold = 40;
   else if (brand.includes('tide') || name.includes('tide')) customThreshold = 40;
+  else if (brand.includes('vim') || name.includes('vim')) customThreshold = 40;
   else if (name.includes('atta') || name.includes('coffee')) customThreshold = 40;
   else if (name.includes('cashew') || name.includes('almond') || brand.includes('ariel')) customThreshold = 50;
   else if (name.includes('dal')) customThreshold = 60;
   else if (name.includes('chocolate') || cat.includes('home decor')) customThreshold = 70;
   
-  // --- Cleaning Supplies ---
-  else if (brand.includes('vim') || name.includes('vim')) customThreshold = 40;
-  
-  // --- Targeted Beauty & Personal Care (Strict 70% threshold) ---
+  // Rule 3: Targeted personal care brands (default at 70%)
   else if (brand.includes('loreal') || brand.includes("l'oreal") || name.includes('loreal') || name.includes("l'oreal")) customThreshold = 70;
   else if (brand.includes('nivea') || name.includes('nivea')) customThreshold = 70;
   else if (brand.includes('be neude') || name.includes('be neude')) customThreshold = 70;
@@ -94,10 +99,19 @@ function evaluateCustomRules(item, baseThreshold) {
   else if (brand.includes('pantene') || name.includes('pantene')) customThreshold = 70;
   else if (name.includes('shampoo') || name.includes('body lotion') || name.includes('face wash') || name.includes('hair oil')) customThreshold = 70;
 
+  // Assign tier
   let tier = 'TIER_LOW';
-  if (isGlitch) tier = 'GLITCH';
-  else if (item.discount >= 70) tier = 'TIER_70';
-  else if (item.discount >= 40) tier = 'TIER_40';
+  if (isGlitch) {
+    tier = 'GLITCH';
+  } else if (!isElectronics && item.discount >= 80) {
+    tier = 'MEGA_LOOT'; // 80%, 90%, 100% OFF for all non-electronics
+  } else if (isElectronics && item.discount >= 90) {
+    tier = 'MEGA_LOOT'; // 90%+ OFF for electronics
+  } else if (item.discount >= 70) {
+    tier = 'TIER_70';
+  } else if (item.discount >= 40) {
+    tier = 'TIER_40';
+  }
 
   return { threshold: customThreshold, tier };
 }
@@ -112,14 +126,13 @@ function findAlertWorthyDeals(items, minDiscount = 70, campaignKey = 'default', 
   for (const item of items) {
     const rule = evaluateCustomRules(item, typeof minDiscount === 'number' ? minDiscount : 70);
     
-    // SKIP LOGIC: Under 40% goes completely ignored
-    if (item.discount < rule.threshold && rule.tier !== 'GLITCH') continue;
+    // Skip if below threshold, unless it is a glitch or 80%+ mega loot
+    if (item.discount < rule.threshold && rule.tier !== 'GLITCH' && rule.tier !== 'MEGA_LOOT') continue;
     item.tier = rule.tier;
 
     const itemKey = getCanonicalItemKey(item);
     if (!itemKey) continue;
 
-    // Cross-store duplicate merging
     if (seenInCurrentRun.has(itemKey)) {
       const existingAlert = seenInCurrentRun.get(itemKey);
       if (item.price < existingAlert.price) {

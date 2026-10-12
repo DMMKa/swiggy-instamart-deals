@@ -1937,6 +1937,24 @@
           "name": "Disposal Bags and Cramp Relief",
           "id": "6903b10bd2c61b000112bad2",
           "taxonomyType": "taxonomy 14"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Liquid Detergents",
+          "id": "6903b179fe6d7500013a0d33",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Dishwash Gel",
+          "id": "6903b179fe6d7500013a0d3c",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Detergent Powders",
+          "id": "6903b179fe6d7500013a0d32",
+          "taxonomyType": "IM Meatsy"
         }
       ]
     },

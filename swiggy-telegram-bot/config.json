@@ -34,6 +34,7 @@
   "customRules": {
     "aashirvaad": 40,
     "tide": 40,
+    "vim": 40,
     "atta": 40,
     "Ground Coffee": 40,
     "cashew": 50,
@@ -1646,7 +1647,7 @@
       ]
     },
     "personalCare": {
-      "name": "Personal Care, Bath & Skincare",
+      "name": "Personal Care, Cleaning & Hygiene",
       "tag": "🧴",
       "type": "subcategory",
       "enabled": true,
@@ -1955,17 +1956,58 @@
           "name": "Detergent Powders",
           "id": "6903b179fe6d7500013a0d32",
           "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Repellent",
+          "id": "6903b179fe6d7500013a0d42",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Mosquito Refills",
+          "id": "6903b179fe6d7500013a0d3e",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Toilet Cleaners",
+          "id": "6903b179fe6d7500013a0d38",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Floor Cleaners",
+          "id": "6903b179fe6d7500013a0d35",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Surface Disinfectants",
+          "id": "6903b179fe6d7500013a0d41",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Kitchen Cleaning",
+          "id": "6903b179fe6d7500013a0d37",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Cleaners and Repellents",
+          "name": "Bathroom Cleaning",
+          "id": "6903b179fe6d7500013a0d39",
+          "taxonomyType": "IM Meatsy"
         }
       ]
     },
     "lifestyle": {
-      "name": "Baby Care & Lifestyle",
+      "name": "Baby, Home, Puja & Lifestyle",
       "tag": "👶",
       "type": "subcategory",
       "enabled": true,
-      "minDiscount": 85,
-      "refreshCycle": "weekly",
-      "weeklyResetDay": 1,
+      "minDiscount": 70,
+      "refreshCycle": "daily",
       "subcategories": [
         {
           "category": "Baby Care",
@@ -2028,15 +2070,39 @@
           "taxonomyType": "IM Meatsy"
         },
         {
-          "category": "Electronics and Appliances",
-          "name": "Personal Care Appliances",
-          "id": "69b7c133958236000180ec1d",
+          "category": "Home and Kitchen",
+          "name": "Jars & Containers",
+          "id": "6903b179fe6d7500013a0d09",
           "taxonomyType": "IM Meatsy"
         },
         {
-          "category": "Electronics and Appliances",
-          "name": "Earphones & headsets",
-          "id": "6903b179fe6d7500013a0d61",
+          "category": "Home and Kitchen",
+          "name": "Bottles, Flask and Tumblers",
+          "id": "6903b179fe6d7500013a0d0a",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Puja Store",
+          "name": "Agarbatti & Stand",
+          "id": "6903b179fe6d7500013a0d21",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Puja Store",
+          "name": "Diya & Baati",
+          "id": "6903b179fe6d7500013a0d20",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Puja Store",
+          "name": "Camphor & Matchbox",
+          "id": "6903b179fe6d7500013a0d26",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Puja Store",
+          "name": "Dhoop",
+          "id": "6903b179fe6d7500013a0d22",
           "taxonomyType": "IM Meatsy"
         },
         {
@@ -2082,12 +2148,6 @@
           "taxonomyType": "IM Meatsy"
         },
         {
-          "category": "Toys and Stationery",
-          "name": "Books",
-          "id": "6903b179fe6d7500013a0d4f",
-          "taxonomyType": "IM Meatsy"
-        },
-        {
           "category": "Fashion",
           "name": "Men's Innerwear",
           "id": "6903b179fe6d7500013a0d6d",
@@ -2109,6 +2169,42 @@
           "category": "Fashion",
           "name": "Belts & Wallets",
           "id": "6903b179fe6d7500013a0d70",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Electronics and Appliances",
+          "name": "Personal Care Appliances",
+          "id": "69b7c133958236000180ec1d",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Electronics and Appliances",
+          "name": "Earphones & headsets",
+          "id": "6903b179fe6d7500013a0d61",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Electronics and Appliances",
+          "name": "Kitchen Appliances",
+          "id": "6903b179fe6d7500013a0d64",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Electronics and Appliances",
+          "name": "Speakers & Soundbars",
+          "id": "6903b179fe6d7500013a0d6b",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Electronics and Appliances",
+          "name": "Powerbanks Chargers Cables",
+          "id": "6903b179fe6d7500013a0d68",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Electronics and Appliances",
+          "name": "Batteries & Extensions",
+          "id": "6903b179fe6d7500013a0d5f",
           "taxonomyType": "IM Meatsy"
         }
       ]

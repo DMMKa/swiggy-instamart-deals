@@ -2082,6 +2082,12 @@
           "taxonomyType": "IM Meatsy"
         },
         {
+          "category": "Home and Kitchen",
+          "name": "Home decor",
+          "id": "6903b179fe6d7500013a0d13",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
           "category": "Puja Store",
           "name": "Agarbatti & Stand",
           "id": "6903b179fe6d7500013a0d21",
@@ -2103,6 +2109,12 @@
           "category": "Puja Store",
           "name": "Dhoop",
           "id": "6903b179fe6d7500013a0d22",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Puja Store",
+          "name": "Mandir Decor",
+          "id": "6903b179fe6d7500013a0d2c",
           "taxonomyType": "IM Meatsy"
         },
         {
@@ -2205,6 +2217,12 @@
           "category": "Electronics and Appliances",
           "name": "Batteries & Extensions",
           "id": "6903b179fe6d7500013a0d5f",
+          "taxonomyType": "IM Meatsy"
+        },
+        {
+          "category": "Electronics and Appliances",
+          "name": "Lights & Bulbs",
+          "id": "6903b179fe6d7500013a0d66",
           "taxonomyType": "IM Meatsy"
         }
       ]

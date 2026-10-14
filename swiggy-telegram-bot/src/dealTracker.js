@@ -74,12 +74,15 @@ function evaluateCustomRules(item, baseThreshold) {
     isGlitch = true;
   }
 
-  // Threshold calculation
   let customThreshold = baseThreshold;
 
-  // Rule 1: Electronics strictly requires 90%
+  // Rule 1: Electronics strictly requires 90%, UNLESS it's a specific requested item
   if (isElectronics) {
-    customThreshold = 90;
+    if (name.includes('light') || name.includes('led') || name.includes('pixel') || name.includes('diwali') || name.includes('frother') || brand.includes('ikea')) {
+      customThreshold = 70; // Exempt from the 90% block
+    } else {
+      customThreshold = 90;
+    }
   }
   // Rule 2: High priority essentials & cleaning
   else if (brand.includes('aashirvaad') || name.includes('aashirvaad')) customThreshold = 40;
@@ -99,14 +102,18 @@ function evaluateCustomRules(item, baseThreshold) {
   else if (brand.includes('pantene') || name.includes('pantene')) customThreshold = 70;
   else if (name.includes('shampoo') || name.includes('body lotion') || name.includes('face wash') || name.includes('hair oil')) customThreshold = 70;
 
-  // Assign tier
+  // Rule 4: Catch IKEA, Frothers, and Lights in non-electronics categories
+  else if (name.includes('frother') || brand.includes('ikea') || name.includes('diwali') || name.includes('pixel') || name.includes('chain light') || name.includes('string light')) {
+    customThreshold = 70;
+  }
+
   let tier = 'TIER_LOW';
   if (isGlitch) {
     tier = 'GLITCH';
   } else if (!isElectronics && item.discount >= 80) {
-    tier = 'MEGA_LOOT'; // 80%, 90%, 100% OFF for all non-electronics
+    tier = 'MEGA_LOOT';
   } else if (isElectronics && item.discount >= 90) {
-    tier = 'MEGA_LOOT'; // 90%+ OFF for electronics
+    tier = 'MEGA_LOOT'; // Lights/Frothers in electronics will also hit this if they reach 90%
   } else if (item.discount >= 70) {
     tier = 'TIER_70';
   } else if (item.discount >= 40) {
@@ -126,7 +133,6 @@ function findAlertWorthyDeals(items, minDiscount = 70, campaignKey = 'default', 
   for (const item of items) {
     const rule = evaluateCustomRules(item, typeof minDiscount === 'number' ? minDiscount : 70);
     
-    // Skip if below threshold, unless it is a glitch or 80%+ mega loot
     if (item.discount < rule.threshold && rule.tier !== 'GLITCH' && rule.tier !== 'MEGA_LOOT') continue;
     item.tier = rule.tier;
 

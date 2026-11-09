@@ -2,10 +2,8 @@ name: Swiggy Instamart Keyword Deal Hunter
 
 on:
   schedule:
-    # Wakes up at exactly 6:01 AM IST (00:31 UTC)
-    - cron: '31 0 * * *'
-    # Runs every 30 mins from 6:31 AM to 12:01 AM IST (01:01 to 18:31 UTC)
-    - cron: '1,31 1-18 * * *'
+    # Runs every 30 minutes, 24 hours a day
+    - cron: '1,31 * * * *'
   workflow_dispatch:
     inputs:
       skip_sync:

@@ -5,7 +5,7 @@ javascript:(async () => {
      INSTAMART HUNTER v4 — Category & Subcategory Scout
      
      Features:
-     1. Complete 26 Instamart Categories with 340+ subcategories pre-mapped.
+     1. Complete 36 Instamart Categories with 110+ subcategories pre-mapped.
      2. Collapsed Subcategories by Default:
         - Categories can be expanded/collapsed with a smooth chevron toggle.
         - Auto-expands on search or when picking subcategories.
@@ -2371,25 +2371,14 @@ javascript:(async () => {
     }
   }
 
-  function extractVariations(node, out, parentInfo = {}) {
+  function extractVariations(node, out) {
     if (!node || typeof node !== 'object') return;
-    const currentParent = {
-      productId: node.productId || node.product_id || (node.id && /^[A-Za-z0-9_-]{6,16}$/.test(node.id) ? node.id : null) || parentInfo.productId,
-      parentProductId: node.parentProductId || node.parent_product_id || parentInfo.parentProductId,
-      displayName: node.displayName || parentInfo.displayName
-    };
     if (node.variations && Array.isArray(node.variations)) {
-      for (const v of node.variations) {
-        if (currentParent.productId) v.productId = currentParent.productId;
-        if (currentParent.parentProductId) v.parentProductId = currentParent.parentProductId;
-        out.push(v);
-      }
+      out.push(...node.variations);
     } else if (node.displayName && (node.price || node.offerPrice)) {
-      if (currentParent.productId) node.productId = currentParent.productId;
-      if (currentParent.parentProductId) node.parentProductId = currentParent.parentProductId;
       out.push(node);
     } else {
-      Object.values(node).forEach((v) => extractVariations(v, out, currentParent));
+      Object.values(node).forEach((v) => extractVariations(v, out));
     }
   }
 
@@ -2420,21 +2409,16 @@ javascript:(async () => {
 
       const rawSku = v.skuId || v.spinId;
       const skuId = rawSku || name;
-      const rawProductId = v.productId || v.parentProductId || null;
-      const candidateId = rawProductId || (rawSku && /^[A-Za-z0-9_-]{6,16}$/.test(rawSku) ? rawSku : null);
       const imageId = v.imageIds?.[0] || v.imageId || '';
       const imageUrl = imageId
         ? `https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy,f_auto,q_auto,w_360,h_360,c_fit/${imageId}`
         : null;
 
       const searchLink = `https://www.swiggy.com/instamart/search?custom_back=true&query=${encodeURIComponent(name)}`;
-      const itemLink = candidateId
-        ? `https://www.swiggy.com/instamart/item/${candidateId}`
-        : searchLink;
+      const itemLink = searchLink;
 
       const item = {
         skuId,
-        productId: candidateId,
         name,
         brand: v.brandName || v.brand || 'Instamart',
         pack: v.quantityDescription || '',
@@ -2442,7 +2426,7 @@ javascript:(async () => {
         mrp,
         discount,
         savings,
-        category: catKey.replace(/^[^\w\s]+\s*/, '').trim(),
+        category: catKey.replace(/^\S+\s/, ''),
         subCategory: sub.name,
         rating: v.rating?.value ? `${v.rating.value} ★` : null,
         ratingCount: v.rating?.count || null,
@@ -2452,11 +2436,10 @@ javascript:(async () => {
         searchLink
       };
 
-      const dedupKey = `${name}__${v.quantityDescription || skuId}`;
-      const existing = resultMap.get(dedupKey);
-      if (!existing || discount > existing.discount || (discount === existing.discount && price < existing.price)) {
-        if (!existing) itemsFound++;
-        resultMap.set(dedupKey, item);
+      const existing = resultMap.get(name);
+      if (!existing || price < existing.price) {
+        resultMap.set(name, item);
+        itemsFound++;
       }
       itemsList.push(item);
     }
@@ -2503,16 +2486,12 @@ javascript:(async () => {
     let itemsFound = parsed.itemsFound;
     let fetchedPage2 = false;
 
-    // Smart Page 2 Expansion: If Page 1 has 15+ items and the lowest discount > 50% (or 5+ high-discount items for collections), grab Page 2
+    // Smart Page 2 Expansion: If Page 1 has 15+ items and the lowest discount > 50%, grab Page 2
     const items = parsed.itemsList;
     const lastItem = items.length > 0 ? items[items.length - 1] : null;
 
-    const shouldFetchPage2 = isColl
-      ? (sub.id && items.length >= 15 && items.filter(it => it.discount >= 50).length >= 5)
-      : (sub.id && items.length >= 15 && lastItem && lastItem.discount > 50);
-
-    if (shouldFetchPage2) {
-      onProgress?.(isColl ? 'Collection has high discounts — fetching Page 2…' : `Last item on Page 1 is ${lastItem.discount}% OFF (>50%) — fetching Page 2…`);
+    if (sub.id && items.length >= 15 && lastItem && lastItem.discount > 50) {
+      onProgress?.(`Last item on Page 1 is ${lastItem.discount}% OFF (>50%) — fetching Page 2…`);
       const p2Delay = isRetry
         ? CFG.pacing.subMin + Math.floor(Math.random() * (CFG.pacing.subMax - CFG.pacing.subMin))
         : 150;
@@ -2524,8 +2503,7 @@ javascript:(async () => {
 
       if (isColl) {
         method2 = 'GET';
-        const collOffset = data.data?.pageOffset?.nextOffset ?? 1;
-        url2 = `https://www.swiggy.com/api/instamart/collection/items?collectionId=${sub.id}&isMonetised=true&storeId=${storeIds.sid}&primaryStoreId=${storeIds.pid}&secondaryStoreId=${storeIds.secid}&offset=${collOffset}&serviceLine=INSTAMART`;
+        url2 = `https://www.swiggy.com/api/instamart/collection/items?collectionId=${sub.id}&isMonetised=true&storeId=${storeIds.sid}&primaryStoreId=${storeIds.pid}&secondaryStoreId=${storeIds.secid}&offset=1&serviceLine=INSTAMART`;
       } else {
         method2 = 'POST';
         url2 = `https://www.swiggy.com/api/instamart/category-listing/filter/v2?storeId=${storeIds.sid}&primaryStoreId=${storeIds.pid}&secondaryStoreId=${storeIds.secid}&pageNo=1&offset=1&page_name=category_listing_filter`;
@@ -2588,140 +2566,6 @@ javascript:(async () => {
     }
 
     return { scanned, maxDiscount, itemsFound, fetchedPage2: page > 0 };
-  }
-
-  const QUICK_KEYWORDS = [
-    // Staples & Cooking
-    'atta',
-    'rice',
-    'dal',
-    'oil',
-    'ghee',
-    'masala',
-    'grocery',
-    // Fresh, Dairy & Meat
-    'fruits',
-    'vegetables',
-    'dairy',
-    'eggs',
-    'meat',
-    // Sweets, Treats & Bakery
-    'sweets',
-    'chocolate',
-    'cake',
-    'ice cream',
-    'cookies',
-    'biscuits',
-    // Snacks, Munchies & Breakfast
-    'snacks',
-    'munchies',
-    'dry fruits',
-    'instant',
-    // Drinks & Nutrition
-    'beverages',
-    'tea',
-    'coffee',
-    'protein',
-    // Personal Care & Beauty
-    'skincare',
-    'haircare',
-    'bath',
-    'oral',
-    'shampoo',
-    'makeup',
-    // Cleaning & Household
-    'cleaner',
-    'detergents',
-    'kitchen',
-    'home',
-    'bed',
-    // Appliances, Tech & More
-    'appliances',
-    'electronics',
-    'stationery',
-    'premium'
-  ];
-
-  async function fetchKeywordSearchDeals(keyword, storeIds, resultMap) {
-    const searchUrl = `/api/instamart/search/v2?offset=0&ageConsent=false&voiceSearchTrackingId=&storeId=${storeIds.sid}&primaryStoreId=${storeIds.pid}&secondaryStoreId=${storeIds.secid}`;
-    const searchBody = {
-      facets: [],
-      sortAttribute: 'discountPercentHighToLow',
-      query: keyword,
-      search_results_offset: '0',
-      page_type: 'INSTAMART_SEARCH_PAGE',
-      is_pre_search_tag: false
-    };
-
-    const json = await apiRequestSafe(searchUrl, 'POST', searchBody, true);
-    if (!json?.data) return { scanned: 0, maxDiscount: 0, itemsFound: 0 };
-
-    const variations = [];
-    extractVariations(json.data, variations);
-    if (!variations.length) return { scanned: 0, maxDiscount: 0, itemsFound: 0 };
-
-    let scanned = 0;
-    let maxDiscount = 0;
-    let itemsFound = 0;
-
-    const kwLabel = keyword.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-
-    for (const v of variations) {
-      if (v.inventory?.inStock === false) continue;
-      scanned++;
-
-      const mrp = parseFloat(v.price?.mrp?.units || v.price?.mrp || 0);
-      const price = parseFloat(v.price?.offerPrice?.units || v.price?.offerPrice || 0);
-      const discount = mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
-      const savings = Math.max(0, Math.round(mrp - price));
-      const name = v.displayName;
-      if (!name) continue;
-
-      maxDiscount = Math.max(maxDiscount, discount);
-
-      const rawSku = v.skuId || v.spinId;
-      const skuId = rawSku || name;
-      const rawProductId = v.productId || v.parentProductId || null;
-      const candidateId = rawProductId || (rawSku && /^[A-Za-z0-9_-]{6,16}$/.test(rawSku) ? rawSku : null);
-      const imageId = v.imageIds?.[0] || v.imageId || '';
-      const imageUrl = imageId
-        ? `https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy,f_auto,q_auto,w_360,h_360,c_fit/${imageId}`
-        : null;
-
-      const searchLink = `https://www.swiggy.com/instamart/search?custom_back=true&query=${encodeURIComponent(name)}`;
-      const itemLink = candidateId
-        ? `https://www.swiggy.com/instamart/item/${candidateId}`
-        : searchLink;
-
-      const item = {
-        skuId,
-        productId: candidateId,
-        name,
-        brand: v.brandName || v.brand || 'Instamart',
-        pack: v.quantityDescription || '',
-        price,
-        mrp,
-        discount,
-        savings,
-        category: v.category || kwLabel,
-        subCategory: kwLabel,
-        rating: v.rating?.value ? `${v.rating.value} ★` : null,
-        ratingCount: v.rating?.count || null,
-        imageUrl,
-        image: imageId,
-        itemLink,
-        searchLink
-      };
-
-      const dedupKey = `${name}__${v.quantityDescription || skuId}`;
-      const existing = resultMap.get(dedupKey);
-      if (!existing || discount > existing.discount || (discount === existing.discount && price < existing.price)) {
-        if (!existing) itemsFound++;
-        resultMap.set(dedupKey, item);
-      }
-    }
-
-    return { scanned, maxDiscount, itemsFound };
   }
 
   /* ==========================================================================
@@ -2869,16 +2713,6 @@ javascript:(async () => {
     #ih4-fetch:hover:not(:disabled) { background: #fc8019; }
     #ih4-fetch:active:not(:disabled) { transform: translateY(1px); }
     #ih4-fetch:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
-    #ih4-quick-search {
-      width: 100%; margin-top: 8px; padding: 11px 14px; border-radius: 10px; border: none;
-      background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff;
-      font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s ease;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      box-shadow: 0 2px 5px rgba(79, 70, 229, 0.25);
-    }
-    #ih4-quick-search:hover:not(:disabled) { background: linear-gradient(135deg, #4f46e5, #4338ca); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35); }
-    #ih4-quick-search:active:not(:disabled) { transform: translateY(1px); }
-    #ih4-quick-search:disabled { background: #e2e8f0; color: #94a3b8; box-shadow: none; cursor: not-allowed; }
     #ih4-status { font-size: 12px; color: #64748b; margin-top: 9px; min-height: 16px; text-align: center; line-height: 1.4; }
     #ih4-open-results-link { display: none; margin-top: 8px; font-size: 12.5px; color: #fc8019; text-align: center; font-weight: 700; cursor: pointer; }
   `;
@@ -2918,7 +2752,6 @@ javascript:(async () => {
           <span style="font-size:11px;color:#16a34a;font-weight:700;">Top Deals</span>
         </div>
         <button id="ih4-fetch" disabled>Select subcategories to scout</button>
-        <button id="ih4-quick-search" type="button" title="Fast scan top deals across 41 broad store keywords">⚡ Quick Keyword Deals (Fast Scan)</button>
         <div id="ih4-status"></div>
         <div id="ih4-open-results-link">Open Results Tab ↗</div>
       </div>
@@ -2936,7 +2769,6 @@ javascript:(async () => {
   const fabBadge = root.querySelector('#ih4-fab-badge');
   const listEl = root.querySelector('#ih4-list');
   const fetchBtn = root.querySelector('#ih4-fetch');
-  const quickSearchBtn = root.querySelector('#ih4-quick-search');
   const statusEl = root.querySelector('#ih4-status');
   const catsCountEl = root.querySelector('#ih4-cats-count');
   const openResultsLink = root.querySelector('#ih4-open-results-link');
@@ -2955,10 +2787,8 @@ javascript:(async () => {
       storeBadgeEl.style.color = '#166534';
       storeBadgeEl.style.borderColor = '#bbf7d0';
       if (storeDotEl) storeDotEl.style.background = '#16a34a';
-      const cleanSid = String(storeIds.sid).replace(/[^\d]/g, '');
-      const cleanSecid = storeIds.secid ? String(storeIds.secid).replace(/[^\d]/g, '') : '';
-      const secText = cleanSecid ? ` <span style="color:#64748b;font-weight:normal;">(Sec: ${cleanSecid})</span>` : '';
-      storeTextEl.innerHTML = `🏪 Store Pod: <b>${cleanSid}</b>${secText}`;
+      const secText = storeIds.secid ? ` <span style="color:#64748b;font-weight:normal;">(Sec: ${storeIds.secid})</span>` : '';
+      storeTextEl.innerHTML = `🏪 Store Pod: <b>${storeIds.sid}</b>${secText}`;
     } else {
       activeStoreIds = null;
       storeBadgeEl.style.background = '#fffbeb';
@@ -2983,7 +2813,6 @@ javascript:(async () => {
   let hasResults = false;
   let finalItemsCache = [];
   let latestMetaCache = null;
-  let resultsWin = null;
 
   // Single-Category Selection State & Accordion State:
   let selectedCat = null;
@@ -2992,7 +2821,7 @@ javascript:(async () => {
   let currentSection = 'All';
 
   function getCleanCatName(catKey) {
-    return catKey.replace(/^[^\w\s]+\s*/, '').trim();
+    return catKey.replace(/^\S+\s/, '');
   }
 
   function updateFooter() {
@@ -3472,14 +3301,6 @@ javascript:(async () => {
     <select id="brandFilter">
       <option value="">All Brands</option>
     </select>
-    <select id="minDiscountFilter">
-      <option value="0">All Discounts (0%+)</option>
-      <option value="30">30%+ OFF</option>
-      <option value="50">50%+ OFF</option>
-      <option value="60">60%+ OFF</option>
-      <option value="70">70%+ OFF</option>
-      <option value="80">80%+ OFF</option>
-    </select>
     <select id="sortSelect">
       <option value="discount-desc">🔥 Highest Discount %</option>
       <option value="savings-desc">💰 Highest Savings (₹)</option>
@@ -3501,7 +3322,7 @@ javascript:(async () => {
   <script>
     let DATA = ${serializedData} || [];
     let META = ${serializedMeta} || null;
-    let query = '', subFilter = '', brandFilter = '', minDiscountFilter = 0, sortOption = 'discount-desc';
+    let query = '', subFilter = '', brandFilter = '', sortOption = 'discount-desc';
 
     function esc(s) {
       return String(s || '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -3535,7 +3356,6 @@ javascript:(async () => {
       const q = query.trim().toLowerCase();
 
       let rows = DATA.filter((r) => {
-        if (minDiscountFilter > 0 && (r.discount || 0) < minDiscountFilter) return false;
         if (subFilter && r.subCategory !== subFilter) return false;
         if (brandFilter && r.brand !== brandFilter) return false;
         if (!q) return true;
@@ -3568,7 +3388,7 @@ javascript:(async () => {
           const imgUrl = r.imageUrl || (r.image ? ('https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy,f_auto,q_auto,w_360,h_360,c_fit/' + esc(r.image)) : '');
           const brand = r.brand || 'Instamart';
           const sub = r.subCategory || '';
-          const sLink = r.itemLink || r.searchLink || ('https://www.swiggy.com/instamart/search?custom_back=true&query=' + encodeURIComponent(r.name));
+          const sLink = r.searchLink || ('https://www.swiggy.com/instamart/search?custom_back=true&query=' + encodeURIComponent(r.name));
 
           let cardHtml = '<div class="product-card">';
           if (r.discount > 0) {
@@ -3607,7 +3427,6 @@ javascript:(async () => {
     document.getElementById('search').addEventListener('input', (e) => { query = e.target.value; render(); });
     document.getElementById('subFilter').addEventListener('change', (e) => { subFilter = e.target.value; render(); });
     document.getElementById('brandFilter').addEventListener('change', (e) => { brandFilter = e.target.value; render(); });
-    document.getElementById('minDiscountFilter').addEventListener('change', (e) => { minDiscountFilter = Number(e.target.value) || 0; render(); });
     document.getElementById('sortSelect').addEventListener('change', (e) => { sortOption = e.target.value; render(); });
 
     window.__ihReceive = function (msg) {
@@ -3672,17 +3491,9 @@ javascript:(async () => {
 
   function openResults() {
     if (!finalItemsCache || (!finalItemsCache.length && !latestMetaCache)) return;
-    const catNameClean = latestMetaCache?.categoryName || (selectedCat ? getCleanCatName(selectedCat) : 'Instamart');
-    if (resultsWin && !resultsWin.closed) {
-      try {
-        resultsWin.focus();
-        resultsWin.__ihReceive?.({ source: 'ih4', type: 'done', items: finalItemsCache, meta: latestMetaCache });
-        return;
-      } catch (e) {}
-    }
+    const catNameClean = selectedCat ? getCleanCatName(selectedCat) : 'Instamart';
     const w = window.open('', '_blank');
     if (w) {
-      resultsWin = w;
       w.document.open();
       w.document.write(buildResultsTabHTML([catNameClean], finalItemsCache, latestMetaCache));
       w.document.close();
@@ -3721,26 +3532,11 @@ javascript:(async () => {
       return;
     }
 
-    // Open results window synchronously on click to prevent popup blockers
-    try {
-      if (!resultsWin || resultsWin.closed) {
-        resultsWin = window.open('', '_blank');
-        if (resultsWin) {
-          resultsWin.document.open();
-          resultsWin.document.write(buildResultsTabHTML([catNameClean], null, null));
-          resultsWin.document.close();
-        }
-      } else {
-        resultsWin.focus();
-      }
-    } catch (e) {}
-
     isScouting = true;
     hasResults = false;
     expandedCats.clear();
     listEl.querySelectorAll('.ih4-cat-card.expanded').forEach(card => card.classList.remove('expanded'));
     fetchBtn.disabled = true;
-    quickSearchBtn.disabled = true;
     fetchBtn.textContent = '⏳ Scouting Deals…';
     fetchBtn.style.background = '';
     openResultsLink.style.display = 'none';
@@ -3749,17 +3545,6 @@ javascript:(async () => {
       const payload = { source: 'ih4', time: Date.now(), ...msg };
       try { sessionStorage.setItem('__IH4_LATEST_DEALS__', JSON.stringify(payload)); } catch (e) {}
       try { window.__IH4_LATEST_MSG__ = payload; } catch (e) {}
-      if (resultsWin && !resultsWin.closed) {
-        try {
-          if (typeof resultsWin.__ihReceive === 'function') {
-            resultsWin.__ihReceive(payload);
-          } else {
-            resultsWin.postMessage(payload, '*');
-          }
-        } catch (e) {
-          try { resultsWin.postMessage(payload, '*'); } catch (e2) {}
-        }
-      }
     };
 
     activeDispatch = dispatch;
@@ -3873,145 +3658,13 @@ javascript:(async () => {
     dispatch({ type: 'done', items: finalItems, meta: latestMetaCache });
 
     fetchBtn.disabled = false;
-    quickSearchBtn.disabled = false;
-    fetchBtn.style.background = '#16a34a';
-    fetchBtn.textContent = `🟢 View ${finalItems.length} Deals in Results Tab ↗`;
-
-    openResultsLink.style.display = 'block';
-    if (!resultsWin || resultsWin.closed) {
-      openResults();
-    } else {
-      try { resultsWin.focus(); } catch (e) {}
-    }
-  });
-
-  quickSearchBtn.addEventListener('click', async () => {
-    if (isScouting) return;
-
-    const storeIds = detectStoreIds(true) || activeStoreIds;
-    if (!storeIds) {
-      statusEl.textContent = 'Could not detect store ID. Please navigate to an Instamart page or click ↻ on the store pod above.';
-      updateStorePodDisplay(null);
-      return;
-    }
-    updateStorePodDisplay(storeIds);
-
-    // Open results window synchronously on click to prevent popup blockers
-    try {
-      if (!resultsWin || resultsWin.closed) {
-        resultsWin = window.open('', '_blank');
-        if (resultsWin) {
-          resultsWin.document.open();
-          resultsWin.document.write(buildResultsTabHTML(['⚡ Quick Store Keyword Deals'], null, null));
-          resultsWin.document.close();
-        }
-      } else {
-        resultsWin.focus();
-      }
-    } catch (e) {}
-
-    isScouting = true;
-    hasResults = false;
-    quickSearchBtn.disabled = true;
-    quickSearchBtn.textContent = '⏳ Scanning Keywords…';
-    fetchBtn.disabled = true;
-    openResultsLink.style.display = 'none';
-
-    const dispatch = (msg) => {
-      const payload = { source: 'ih4', time: Date.now(), ...msg };
-      try { sessionStorage.setItem('__IH4_LATEST_DEALS__', JSON.stringify(payload)); } catch (e) {}
-      try { window.__IH4_LATEST_MSG__ = payload; } catch (e) {}
-      if (resultsWin && !resultsWin.closed) {
-        try {
-          if (typeof resultsWin.__ihReceive === 'function') {
-            resultsWin.__ihReceive(payload);
-          } else {
-            resultsWin.postMessage(payload, '*');
-          }
-        } catch (e) {
-          try { resultsWin.postMessage(payload, '*'); } catch (e2) {}
-        }
-      }
-    };
-
-    activeDispatch = dispatch;
-    const resultMap = new Map();
-    let totalScanned = 0;
-    let overallMaxDiscount = 0;
-    const totalKws = QUICK_KEYWORDS.length;
-
-    const BATCH_SIZE = 3;
-    statusEl.textContent = `Scouting ${totalKws} keywords (batches of ${BATCH_SIZE})…`;
-    dispatch({ type: 'progress', text: `Scouting ${totalKws} keywords…`, doneCount: 0, total: totalKws });
-
-    let processedCount = 0;
-    for (let i = 0; i < totalKws; i += BATCH_SIZE) {
-      const batch = QUICK_KEYWORDS.slice(i, i + BATCH_SIZE);
-      const batchLabels = batch.map(kw => kw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
-
-      const startIdx = i + 1;
-      const endIdx = Math.min(i + batch.length, totalKws);
-      const progressLabel = `[${startIdx}-${endIdx}/${totalKws}] ${batchLabels.join(', ')}`;
-
-      statusEl.textContent = `Searching ${progressLabel}…`;
-      dispatch({
-        type: 'progress',
-        text: `Searching ${progressLabel}…`,
-        doneCount: processedCount,
-        total: totalKws
-      });
-
-      const batchResults = await Promise.all(
-        batch.map(kw => fetchKeywordSearchDeals(kw, storeIds, resultMap))
-      );
-
-      for (const res of batchResults) {
-        if (res) {
-          totalScanned += res.scanned;
-          overallMaxDiscount = Math.max(overallMaxDiscount, res.maxDiscount);
-        }
-      }
-
-      processedCount += batch.length;
-
-      // Mild human-like pause (220ms - 380ms jitter) between batches to stay safe from 429 rate limits
-      if (i + BATCH_SIZE < totalKws) {
-        const jitterDelay = 220 + Math.floor(Math.random() * 160);
-        await sleep(jitterDelay);
-      }
-    }
-
-    const finalItems = Array.from(resultMap.values());
-    finalItems.sort((a, b) => b.discount - a.discount);
-    finalItemsCache = finalItems;
-    latestMetaCache = {
-      totalScanned,
-      overallMaxDiscount,
-      totalSubs: totalKws,
-      totalCats: 1,
-      categoryName: '⚡ Quick Store Keyword Deals'
-    };
-
-    isScouting = false;
-    hasResults = true;
-
-    statusEl.innerHTML = `<span style="color:#16a34a;font-weight:700;">✓ Complete:</span> Found <b>${finalItems.length} deals</b> across ${totalKws} keywords (Max: ${overallMaxDiscount}% OFF).`;
-    dispatch({ type: 'done', items: finalItems, meta: latestMetaCache });
-
-    quickSearchBtn.disabled = false;
-    quickSearchBtn.textContent = '⚡ Quick Keyword Deals (Fast Scan)';
-    fetchBtn.disabled = false;
     fetchBtn.style.background = '#16a34a';
     fetchBtn.textContent = `🟢 View ${finalItems.length} Deals in Results Tab ↗`;
 
     openResultsLink.style.display = 'block';
     openResultsLink.textContent = `✨ View ${finalItems.length} Deals in Results Tab ↗`;
 
-    if (!resultsWin || resultsWin.closed) {
-      openResults();
-    } else {
-      try { resultsWin.focus(); } catch (e) {}
-    }
+    openResults();
   });
 
   panel.classList.add('open');

@@ -2,8 +2,8 @@ name: Swiggy Instamart Keyword Deal Hunter
 
 on:
   schedule:
-    - cron: '1,31 4-18 * * *'
-    - cron: '31 3 * * *'
+    # Runs every 30 minutes, 24 hours a day
+    - cron: '1,31 * * * *'
   workflow_dispatch:
     inputs:
       skip_sync:
@@ -19,9 +19,9 @@ jobs:
     timeout-minutes: 10
     strategy:
       fail-fast: false
-      max-parallel: 6
+      max-parallel: 4
       matrix:
-        worker: [fresh, grocery, treats, munchies, beverages, personal, lifestyle, household, clearance]
+        worker: [fresh, grocery, treats, munchies, beverages, personal, lifestyle]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -41,9 +41,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: swiggy-telegram-bot/data
-          key: deal-cache-${{ matrix.worker }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: deal-cache-${{ matrix.worker }}-${{ github.run_id }}
           restore-keys: |
-            deal-cache-${{ matrix.worker }}-${{ github.run_id }}-
             deal-cache-${{ matrix.worker }}-
 
       - name: Run ${{ matrix.worker }} Deal Hunter
@@ -63,9 +62,6 @@ jobs:
           LIFESTYLE_MIN_DISCOUNT: ${{ secrets.LIFESTYLE_MIN_DISCOUNT }}
           BEVERAGES_MIN_DISCOUNT: ${{ secrets.BEVERAGES_MIN_DISCOUNT }}
           PERSONAL_MIN_DISCOUNT: ${{ secrets.PERSONAL_MIN_DISCOUNT }}
-          HOUSEHOLD_MIN_DISCOUNT: ${{ secrets.HOUSEHOLD_MIN_DISCOUNT }}
-          CLEARANCE_MIN_DISCOUNT: ${{ secrets.CLEARANCE_MIN_DISCOUNT }}
-          BRAND_MIN_DISCOUNTS: ${{ secrets.BRAND_MIN_DISCOUNTS }}
           USE_BROWSER: 'true'
           SKIP_SYNC: ${{ inputs.skip_sync }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -82,4 +78,4 @@ jobs:
         if: always()
         with:
           path: swiggy-telegram-bot/data
-          key: deal-cache-${{ matrix.worker }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: deal-cache-${{ matrix.worker }}-${{ github.run_id }}
